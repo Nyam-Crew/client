@@ -8,33 +8,45 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* 매일같이 브랜드 컬러 */
+    --brand-green: 79 42% 70%;        /* #c2d595 연녹색 */
+    --brand-cream: 50 93% 89%;        /* #fef1c1 크림옐로우 */
+    --brand-light: 60 100% 94%;       /* #ffffe1 라이트옐로우 */
+    
+    /* 주요 컬러 시스템 */
+    --background: 60 100% 98%;        /* 아주 연한 크림톤 배경 */
+    --foreground: 79 25% 25%;         /* 자연스러운 다크 그린 */
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 79 25% 25%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 79 25% 25%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 79 42% 65%;            /* 브랜드 그린 */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 50 93% 89%;          /* 크림옐로우 */
+    --secondary-foreground: 79 25% 25%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 50 50% 95%;              /* 연한 크림 */
+    --muted-foreground: 79 15% 55%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 79 42% 85%;             /* 연한 그린 */
+    --accent-foreground: 79 25% 25%;
+
+    --success: 120 50% 60%;           /* 성공 그린 */
+    --success-foreground: 0 0% 100%;
+
+    --warning: 45 93% 70%;            /* 경고 옐로우 */
+    --warning-foreground: 79 25% 25%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 79 30% 85%;
+    --input: 79 30% 92%;
+    --ring: 79 42% 65%;
 
     --radius: 0.5rem;
 
