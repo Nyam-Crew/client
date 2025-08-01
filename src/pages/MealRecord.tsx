@@ -66,65 +66,60 @@ const MealRecord = () => {
         </div>
 
         {/* 나의 하루 탭 */}
-        <TabsContent value="myDay" className="px-4 pt-8 space-y-6">
+        <TabsContent value="myDay" className="px-4 pt-4 space-y-4">
           {/* 칼로리 메인 표시 */}
           <div className="text-center text-white">
-            <div className="text-5xl font-bold mb-2">
+            <div className="text-4xl font-bold mb-3">
               {todayStats.calories.current}
-              <span className="text-2xl text-white/60">/{todayStats.calories.target}kcal</span>
+              <span className="text-xl text-white/60">/{todayStats.calories.target}kcal</span>
             </div>
             
             {/* 매크로 영양소 퍼센트 */}
-            <div className="flex justify-center gap-6 mb-8">
+            <div className="flex justify-center gap-6 mb-4">
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-red-400 rounded-full"></div>
-                <span className="text-white">탄 {todayStats.carbs.percentage}%</span>
+                <div className="w-3 h-3 bg-red-400 rounded-full"></div>
+                <span className="text-white text-sm">탄 {todayStats.carbs.percentage}%</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-yellow-400 rounded-full"></div>
-                <span className="text-white">단 {todayStats.protein.percentage}%</span>
+                <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
+                <span className="text-white text-sm">단 {todayStats.protein.percentage}%</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-blue-800 rounded-full"></div>
-                <span className="text-white">지 {todayStats.fat.percentage}%</span>
+                <div className="w-3 h-3 bg-blue-800 rounded-full"></div>
+                <span className="text-white text-sm">지 {todayStats.fat.percentage}%</span>
               </div>
-            </div>
-
-            {/* 캐릭터 이미지 자리 */}
-            <div className="w-40 h-40 mx-auto mb-8 bg-white/10 rounded-full flex items-center justify-center">
-              <div className="text-6xl">🏋️</div>
             </div>
 
             {/* 칼로리 남은량 표시 */}
-            <div className="text-center mb-8">
+            <div className="text-center mb-4 text-sm">
               <span className="text-orange-300">🔥 {todayStats.calories.target - todayStats.calories.current}kcal 소모</span>
               <span className="text-white mx-2">|</span>
               <span className="text-green-300">{todayStats.calories.target - todayStats.calories.current}kcal 더 먹을 수 있어요</span>
             </div>
 
             {/* 상세 영양소 */}
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-white">순탄수</span>
                 <div className="text-right">
-                  <div className="text-white font-bold">{todayStats.carbs.current}/{todayStats.carbs.target}g</div>
-                  <Progress value={todayStats.carbs.percentage} className="w-24 h-2 bg-white/20" />
+                  <div className="text-white font-bold text-sm">{todayStats.carbs.current}/{todayStats.carbs.target}g</div>
+                  <Progress value={todayStats.carbs.percentage} className="w-20 h-1.5 bg-white/20" />
                 </div>
               </div>
               
               <div className="flex justify-between items-center">
                 <span className="text-white">단백질</span>
                 <div className="text-right">
-                  <div className="text-white font-bold">{todayStats.protein.current}/{todayStats.protein.target}g</div>
-                  <Progress value={todayStats.protein.percentage} className="w-24 h-2 bg-white/20" />
+                  <div className="text-white font-bold text-sm">{todayStats.protein.current}/{todayStats.protein.target}g</div>
+                  <Progress value={todayStats.protein.percentage} className="w-20 h-1.5 bg-white/20" />
                 </div>
               </div>
               
               <div className="flex justify-between items-center">
                 <span className="text-white">지방</span>
                 <div className="text-right">
-                  <div className="text-white font-bold">{todayStats.fat.current}/{todayStats.fat.target}g</div>
-                  <Progress value={todayStats.fat.percentage} className="w-24 h-2 bg-white/20" />
+                  <div className="text-white font-bold text-sm">{todayStats.fat.current}/{todayStats.fat.target}g</div>
+                  <Progress value={todayStats.fat.percentage} className="w-20 h-1.5 bg-white/20" />
                 </div>
               </div>
             </div>
