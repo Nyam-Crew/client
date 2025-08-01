@@ -1,201 +1,214 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  Camera, 
-  Search, 
   Plus, 
-  Clock,
-  Utensils,
-  Zap,
-  Activity
+  Check,
+  Sun,
+  Mountain,
+  Moon,
+  Apple
 } from 'lucide-react';
 
 const MealRecord = () => {
-  const [selectedMeal, setSelectedMeal] = useState('breakfast');
+  const [activeTab, setActiveTab] = useState('myDay');
 
-  const mealTypes = [
-    { id: 'breakfast', label: '아침', icon: '🌅' },
-    { id: 'lunch', label: '점심', icon: '☀️' },
-    { id: 'dinner', label: '저녁', icon: '🌙' },
-    { id: 'snack', label: '간식', icon: '🍪' },
+  // 오늘의 영양소 데이터
+  const todayStats = {
+    calories: { current: 644, target: 1144 },
+    carbs: { percentage: 46, current: 78, target: 163 },
+    protein: { percentage: 14, current: 23, target: 51 },
+    fat: { percentage: 40, current: 30, target: 32 }
+  };
+
+  // 식사별 데이터
+  const meals = [
+    { id: 'breakfast', name: '아침', icon: Sun, status: 'completed', calories: null },
+    { id: 'lunch', name: '점심', icon: Mountain, status: 'completed', calories: 499 },
+    { id: 'dinner', name: '저녁', icon: Moon, status: 'empty', calories: null },
+    { id: 'snack', name: '간식', icon: Apple, status: 'completed', calories: 145 }
   ];
 
-  const recentMeals = [
-    { name: '현미밥', calories: 280, amount: '1공기' },
-    { name: '된장찌개', calories: 120, amount: '1그릇' },
-    { name: '계란후라이', calories: 180, amount: '2개' },
-    { name: '김구이', calories: 25, amount: '3장' },
-  ];
-
-  const recommendedFoods = [
-    { name: '닭가슴살 샐러드', calories: 320, protein: 35, carbs: 15, fat: 8 },
-    { name: '연어 구이', calories: 280, protein: 25, carbs: 0, fat: 18 },
-    { name: '퀴노아 볼', calories: 350, protein: 12, carbs: 45, fat: 12 },
-    { name: '그릭 요거트', calories: 150, protein: 15, carbs: 8, fat: 5 },
-  ];
+  const caloriePercentage = (todayStats.calories.current / todayStats.calories.target) * 100;
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-6">
-      <div className="max-w-4xl mx-auto p-6 space-y-6">
-        {/* 헤더 */}
+    <div className="min-h-screen bg-gradient-to-b from-red-300 to-blue-600">
+      {/* 헤더 */}
+      <div className="bg-red-300 px-4 py-6">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-foreground mb-2">식단 기록</h1>
-          <p className="text-muted-foreground">오늘의 식사를 기록해보세요</p>
-        </div>
-
-        {/* 식사 시간 선택 */}
-        <Card>
-          <CardContent className="p-6">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Clock size={20} />
-              언제 드셨나요?
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {mealTypes.map((meal) => (
-                <Button
-                  key={meal.id}
-                  variant={selectedMeal === meal.id ? "default" : "outline"}
-                  className="h-16 flex-col gap-2"
-                  onClick={() => setSelectedMeal(meal.id)}
-                >
-                  <span className="text-2xl">{meal.icon}</span>
-                  <span>{meal.label}</span>
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 음식 검색 및 추가 */}
-        <Card>
-          <CardContent className="p-6">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Utensils size={20} />
-              무엇을 드셨나요?
-            </h2>
-            
-            <div className="space-y-4">
-              {/* 검색바 */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={20} />
-                <Input 
-                  placeholder="음식 이름을 검색하세요 (예: 현미밥, 닭가슴살)"
-                  className="pl-10"
-                />
-              </div>
-
-              {/* 빠른 추가 버튼들 */}
-              <div className="flex gap-2 flex-wrap">
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Camera size={16} />
-                  사진으로 추가
-                </Button>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Plus size={16} />
-                  직접 입력
-                </Button>
-              </div>
-
-              {/* 추천 음식 */}
-              <div>
-                <h3 className="font-medium mb-3">추천 음식</h3>
-                <div className="grid md:grid-cols-2 gap-3">
-                  {recommendedFoods.map((food, index) => (
-                    <Card key={index} className="cursor-pointer hover:bg-accent/50 transition-colors">
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <h4 className="font-medium">{food.name}</h4>
-                          <Badge variant="secondary">{food.calories}kcal</Badge>
-                        </div>
-                        <div className="flex gap-4 text-sm text-muted-foreground">
-                          <span>단백질 {food.protein}g</span>
-                          <span>탄수화물 {food.carbs}g</span>
-                          <span>지방 {food.fat}g</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 최근 기록 */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity size={20} />
-              최근 기록한 음식
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {recentMeals.map((meal, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-accent/30 rounded-lg hover:bg-accent/50 cursor-pointer transition-colors">
-                  <div>
-                    <p className="font-medium">{meal.name}</p>
-                    <p className="text-sm text-muted-foreground">{meal.amount}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium">{meal.calories}kcal</p>
-                    <Button variant="ghost" size="sm">
-                      추가
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 오늘의 영양소 요약 */}
-        <Card className="bg-gradient-to-r from-brand-light to-brand-cream">
-          <CardContent className="p-6">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Zap size={20} />
-              오늘의 영양소 현황
-            </h2>
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-primary">1,245</p>
-                <p className="text-sm text-muted-foreground">칼로리</p>
-                <p className="text-xs text-success">목표의 65%</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-success">45g</p>
-                <p className="text-sm text-muted-foreground">단백질</p>
-                <p className="text-xs text-success">목표의 75%</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-warning">120g</p>
-                <p className="text-sm text-muted-foreground">탄수화물</p>
-                <p className="text-xs text-warning">목표의 80%</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-destructive">35g</p>
-                <p className="text-sm text-muted-foreground">지방</p>
-                <p className="text-xs text-success">목표의 58%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 저장 버튼 */}
-        <div className="flex gap-3">
-          <Button size="lg" className="flex-1">
-            식단 저장하기
-          </Button>
-          <Button variant="outline" size="lg">
-            임시저장
-          </Button>
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <span className="text-sm text-white/80">간단</span>
+            <span className="text-sm text-white/80">상세</span>
+            <span className="text-sm text-white/80">한눈에</span>
+          </div>
         </div>
       </div>
+
+      {/* 탭 */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="bg-blue-600 px-4">
+          <TabsList className="w-full bg-transparent border-none">
+            <TabsTrigger 
+              value="myDay" 
+              className="flex-1 text-white bg-transparent data-[state=active]:bg-white/20 data-[state=active]:text-white"
+            >
+              나의 하루
+            </TabsTrigger>
+            <TabsTrigger 
+              value="whatIAte" 
+              className="flex-1 text-white bg-transparent data-[state=active]:bg-white/20 data-[state=active]:text-white"
+            >
+              먹었어요
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        {/* 나의 하루 탭 */}
+        <TabsContent value="myDay" className="px-4 pt-8 space-y-6">
+          {/* 칼로리 메인 표시 */}
+          <div className="text-center text-white">
+            <div className="text-5xl font-bold mb-2">
+              {todayStats.calories.current}
+              <span className="text-2xl text-white/60">/{todayStats.calories.target}kcal</span>
+            </div>
+            
+            {/* 매크로 영양소 퍼센트 */}
+            <div className="flex justify-center gap-6 mb-8">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-red-400 rounded-full"></div>
+                <span className="text-white">탄 {todayStats.carbs.percentage}%</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-yellow-400 rounded-full"></div>
+                <span className="text-white">단 {todayStats.protein.percentage}%</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-blue-800 rounded-full"></div>
+                <span className="text-white">지 {todayStats.fat.percentage}%</span>
+              </div>
+            </div>
+
+            {/* 캐릭터 이미지 자리 */}
+            <div className="w-40 h-40 mx-auto mb-8 bg-white/10 rounded-full flex items-center justify-center">
+              <div className="text-6xl">🏋️</div>
+            </div>
+
+            {/* 칼로리 남은량 표시 */}
+            <div className="text-center mb-8">
+              <span className="text-orange-300">🔥 {todayStats.calories.target - todayStats.calories.current}kcal 소모</span>
+              <span className="text-white mx-2">|</span>
+              <span className="text-green-300">{todayStats.calories.target - todayStats.calories.current}kcal 더 먹을 수 있어요</span>
+            </div>
+
+            {/* 상세 영양소 */}
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-white">순탄수</span>
+                <div className="text-right">
+                  <div className="text-white font-bold">{todayStats.carbs.current}/{todayStats.carbs.target}g</div>
+                  <Progress value={todayStats.carbs.percentage} className="w-24 h-2 bg-white/20" />
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-white">단백질</span>
+                <div className="text-right">
+                  <div className="text-white font-bold">{todayStats.protein.current}/{todayStats.protein.target}g</div>
+                  <Progress value={todayStats.protein.percentage} className="w-24 h-2 bg-white/20" />
+                </div>
+              </div>
+              
+              <div className="flex justify-between items-center">
+                <span className="text-white">지방</span>
+                <div className="text-right">
+                  <div className="text-white font-bold">{todayStats.fat.current}/{todayStats.fat.target}g</div>
+                  <Progress value={todayStats.fat.percentage} className="w-24 h-2 bg-white/20" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 하단 배너 */}
+          <Card className="bg-white/90 backdrop-blur">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+                  <span className="text-white text-xs">🏃</span>
+                </div>
+                <div>
+                  <div className="font-semibold text-blue-600">웰컴 미션 진행 중 D-1</div>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                  <Check size={16} className="text-white" />
+                </div>
+                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                  <Check size={16} className="text-white" />
+                </div>
+                <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                  <span className="text-gray-500 text-xs">3</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 먹었어요 탭 */}
+        <TabsContent value="whatIAte" className="px-4 pt-8 space-y-4">
+          <div className="text-white text-right mb-6">
+            <span className="text-sm">식단 물 섭취 영양제</span>
+          </div>
+
+          {/* 식사별 카드 */}
+          <div className="grid grid-cols-2 gap-4">
+            {meals.map((meal) => {
+              const IconComponent = meal.icon;
+              
+              return (
+                <Card key={meal.id} className="bg-blue-800/50 backdrop-blur border-none">
+                  <CardContent className="p-6 text-center">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="text-yellow-400">
+                        <IconComponent size={24} />
+                      </div>
+                      {meal.status === 'completed' ? (
+                        <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
+                          <Check size={16} className="text-blue-600" />
+                        </div>
+                      ) : (
+                        <Plus size={24} className="text-white" />
+                      )}
+                    </div>
+                    
+                    <div className="text-white mb-2 font-medium">{meal.name}</div>
+                    
+                    {meal.status === 'completed' && meal.calories ? (
+                      <div className="text-white font-bold">{meal.calories}kcal</div>
+                    ) : meal.status === 'completed' ? (
+                      <div className="text-sm text-white">✓ 단식했어요</div>
+                    ) : (
+                      <div className="text-sm text-white/60">✓ 단식했어요</div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* 하단 버튼들 */}
+          <div className="flex gap-3 pt-8">
+            <Button className="flex-1 bg-red-500 hover:bg-red-600 text-white border-none">
+              🍎 기록 보상
+            </Button>
+            <Button variant="outline" className="flex-1 bg-green-500 hover:bg-green-600 text-white border-none">
+              🏔️ 식단 앨범
+            </Button>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
