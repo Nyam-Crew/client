@@ -15,11 +15,16 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const MealRecord = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('myDay');
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedMeal, setSelectedMeal] = useState<string | null>(null);
+  const [mealDialogOpen, setMealDialogOpen] = useState(false);
 
   const handleMealClick = (mealId: string) => {
     navigate(`/meal/${mealId}`);
@@ -27,6 +32,15 @@ const MealRecord = () => {
 
   const handleAddFoodClick = () => {
     navigate('/food-search');
+  };
+
+  const handleMealCardClick = (mealId: string, status: string) => {
+    if (status === 'empty') {
+      setSelectedMeal(mealId);
+      setMealDialogOpen(true);
+    } else {
+      handleMealClick(mealId);
+    }
   };
 
   // 요일 배열
@@ -118,10 +132,6 @@ const MealRecord = () => {
 
         {/* 나의 하루 탭 */}
         <TabsContent value="myDay" className="px-4 pt-6 space-y-6" style={{ backgroundColor: '#ffffe1' }}>
-          {/* 상단 텍스트 */}
-          <div className="text-right text-gray-700 text-sm">
-            간단 상세 한눈에
-          </div>
 
           {/* 칼로리 메인 표시 */}
           <div className="text-center text-gray-800">
@@ -189,15 +199,22 @@ const MealRecord = () => {
                   <Progress value={todayStats.fat.percentage} className="w-24 h-2" />
                 </div>
               </div>
+              
+              <div className="flex justify-between items-center">
+                <span>물 섭취</span>
+                <div className="text-right flex items-center gap-3">
+                  <span className="font-bold">1200ml</span>
+                  <div className="w-24 h-2 bg-blue-100 rounded-full">
+                    <div className="h-full bg-blue-500 rounded-full" style={{ width: '60%' }}></div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </TabsContent>
 
         {/* 먹었어요 탭 */}
         <TabsContent value="whatIAte" className="px-4 pt-6 space-y-6" style={{ backgroundColor: '#ffffe1' }}>
-          <div className="text-right text-gray-700 text-sm">
-            식단 물 섭취 영양제
-          </div>
 
           {/* 식사별 카드 - 2x2 그리드에 물까지 5개 */}
           <div className="space-y-4">
@@ -211,7 +228,7 @@ const MealRecord = () => {
                     key={meal.id} 
                     className="border-none cursor-pointer transform hover:scale-105 transition-all duration-200 shadow-lg" 
                     style={{ backgroundColor: '#fef1c1' }}
-                    onClick={() => meal.status === 'empty' ? handleAddFoodClick() : handleMealClick(meal.id)}
+                    onClick={() => handleMealCardClick(meal.id, meal.status)}
                   >
                     <CardContent className="p-6 text-center">
                       <div className="flex justify-between items-start mb-4">
@@ -254,7 +271,7 @@ const MealRecord = () => {
                     key={meal.id} 
                     className="border-none cursor-pointer transform hover:scale-105 transition-all duration-200 shadow-lg" 
                     style={{ backgroundColor: '#fef1c1' }}
-                    onClick={() => meal.status === 'empty' ? handleAddFoodClick() : handleMealClick(meal.id)}
+                    onClick={() => handleMealCardClick(meal.id, meal.status)}
                   >
                     <CardContent className="p-6 text-center">
                       <div className="flex justify-between items-start mb-4">
@@ -329,23 +346,60 @@ const MealRecord = () => {
             </div>
           </div>
 
-          {/* 하단 버튼들 */}
-          <div className="flex gap-3 pt-6">
-            <Button 
-              className="flex-1 text-white border-none font-medium shadow-lg transform hover:scale-105 transition-all duration-200"
-              style={{ backgroundColor: '#ef4444' }}
-            >
-              🍎 기록 보상
-            </Button>
-            <Button 
-              className="flex-1 text-white border-none font-medium shadow-lg transform hover:scale-105 transition-all duration-200"
-              style={{ backgroundColor: '#22c55e' }}
-            >
-              🏔️ 식단 앨범
-            </Button>
-          </div>
         </TabsContent>
       </Tabs>
+
+      {/* 식사 등록 팝업 */}
+      <Dialog open={mealDialogOpen} onOpenChange={setMealDialogOpen}>
+        <DialogContent className="w-[90%] max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedMeal === 'breakfast' && '아침'}
+              {selectedMeal === 'lunch' && '점심'}
+              {selectedMeal === 'dinner' && '저녁'}
+              {selectedMeal === 'snack' && '간식'}
+              {' '}등록
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="food-name">음식명</Label>
+              <Input 
+                id="food-name" 
+                placeholder="음식명을 입력하세요" 
+                className="w-full"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="calories">칼로리</Label>
+              <Input 
+                id="calories" 
+                type="number" 
+                placeholder="칼로리를 입력하세요" 
+                className="w-full"
+              />
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button 
+                variant="outline" 
+                className="flex-1"
+                onClick={() => setMealDialogOpen(false)}
+              >
+                취소
+              </Button>
+              <Button 
+                className="flex-1"
+                onClick={() => {
+                  setMealDialogOpen(false);
+                  // 여기에 저장 로직 추가
+                }}
+              >
+                저장
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
