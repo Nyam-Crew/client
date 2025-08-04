@@ -12,17 +12,17 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-white">
-      <Card className="w-full max-w-md shadow-lg border-0 bg-secondary">
-        <CardContent className="p-8 space-y-8">
+      <Card className="w-full max-w-lg shadow-xl border-0 bg-secondary min-h-[600px] flex items-center">
+        <CardContent className="p-12 space-y-10 w-full">
 
           {/* Welcome Text */}
-          <div className="text-center space-y-2">
-            <h1 className="text-2xl font-bold text-foreground">매일같이</h1>
-            <p className="text-muted-foreground">건강한 식습관을 함께 만들어가요</p>
+          <div className="text-center space-y-4">
+            <h1 className="text-3xl font-bold text-foreground">매일같이</h1>
+            <p className="text-lg text-muted-foreground">건강한 식습관을 함께 만들어가요</p>
           </div>
 
           {/* Social Login Buttons */}
-          <div className="space-y-3">
+          <div className="space-y-5">
             {/* Google Login Button */}
             <Button
               onClick={handleGoogleLogin}
