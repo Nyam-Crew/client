@@ -11,9 +11,9 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: '#ffffe1' }}>
-      <Card className="w-full max-w-md shadow-lg border-0" style={{ backgroundColor: '#fef1c1' }}>
-        <CardContent className="p-8 space-y-6">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-white">
+      <Card className="w-full max-w-md shadow-lg border-0 bg-secondary">
+        <CardContent className="p-8 space-y-8">
           {/* Logo */}
           <div className="flex justify-center">
             <img 
@@ -23,13 +23,19 @@ const Login = () => {
             />
           </div>
 
+          {/* Welcome Text */}
+          <div className="text-center space-y-2">
+            <h1 className="text-2xl font-bold text-foreground">매일같이</h1>
+            <p className="text-muted-foreground">건강한 식습관을 함께 만들어가요</p>
+          </div>
+
           {/* Social Login Buttons */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* Google Login Button */}
             <Button
               onClick={handleGoogleLogin}
               variant="outline"
-              className="w-full h-12 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium"
+              className="w-full h-12 bg-white border-border hover:bg-muted text-foreground font-medium transition-all duration-200 hover:shadow-md"
             >
               <div className="flex items-center justify-center space-x-3">
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -57,16 +63,22 @@ const Login = () => {
             {/* Kakao Login Button */}
             <Button
               onClick={handleKakaoLogin}
-              className="w-full h-12 font-medium"
-              style={{ backgroundColor: '#FEE500', color: '#000000' }}
+              className="w-full h-12 bg-[#FEE500] hover:bg-[#FDD800] text-black font-medium transition-all duration-200 hover:shadow-md border-0"
             >
               <div className="flex items-center justify-center space-x-3">
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 3C7.03 3 3 6.58 3 11c0 2.84 1.84 5.34 4.64 6.74-.21-.8-.39-2.04-.08-2.93l2.28-9.65s-.58-.07-.58-1.5c0-1.41.82-2.46 1.84-2.46.87 0 1.29.65 1.29 1.43 0 .87-.55 2.17-.84 3.37-.24 1.01.51 1.84 1.51 1.84 1.81 0 3.21-1.91 3.21-4.66 0-2.44-1.75-4.15-4.26-4.15-2.9 0-4.6 2.17-4.6 4.42 0 .87.34 1.81.76 2.32.08.1.09.19.07.29-.08.31-.24 1-.28 1.14-.05.2-.17.24-.4.15-1.37-.64-2.23-2.63-2.23-4.23 0-3.45 2.5-6.62 7.22-6.62 3.79 0 6.73 2.7 6.73 6.31 0 3.77-2.38 6.8-5.68 6.8-1.11 0-2.15-.58-2.51-1.35 0 0-.55 2.09-.68 2.61-.25.94-.92 2.12-1.37 2.84.13.04.27.07.41.1C17.72 20.78 21 16.38 21 11c0-4.42-4.03-8-9-8z"/>
+                  <path d="M12 3C7.03 3 3 6.58 3 11c0 2.84 1.84 5.34 4.64 6.74-.21-.8-.39-2.04-.08-2.93l2.28-9.65s-.58-.07-.58-1.5c0-1.41.82-2.46 1.84-2.46.87 0 1.29.65 1.29 1.43 0 .87-.55 2.17-.84 3.37-.24 1.01.51 1.84 1.51 1.84 1.81 0 3.21-1.91 3.21-4.66 0-2.44-1.75-4.15-4.26-4.15-2.9 0-4.6 2.17-4.6 4.42 0 .87.34 1.81.76 2.32.08.1.09.19.07.29-.08.31-.24 1-.28 1.14-.05.2-.17.24-.4.15-1.37-.64-2.23-2.63-2.23-4.23 0-3.45 2.5-6.62 7.22-6.62 3.79 0 6.73 2.7 6.73 6.31 0 3.77-2.38 6.8-5.68 6.8-1.11 0-2.15-.58-2.51-1.35 0 0-.55 2.09-.68 2.61-.25.94-.92 2.12-1.37 2.84.13.04.27.07.41.10C17.72 20.78 21 16.38 21 11c0-4.42-4.03-8-9-8z"/>
                 </svg>
                 <span>카카오로 로그인</span>
               </div>
             </Button>
+          </div>
+
+          {/* Footer Text */}
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground">
+              계정이 없으시면 자동으로 회원가입됩니다
+            </p>
           </div>
         </CardContent>
       </Card>
