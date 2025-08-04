@@ -16,11 +16,13 @@ const Login = () => {
         <CardContent className="p-8 space-y-8">
           {/* Logo */}
           <div className="flex justify-center">
-            <img 
-              src="/lovable-uploads/c47017e5-3777-452b-9342-fdb998d3028f.png"
-              alt="매일같이 로고"
-              className="w-32 h-32 object-contain"
-            />
+            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-primary to-accent p-4 shadow-lg">
+              <img 
+                src="/lovable-uploads/c47017e5-3777-452b-9342-fdb998d3028f.png"
+                alt="매일같이 로고"
+                className="w-full h-full object-contain rounded-full"
+              />
+            </div>
           </div>
 
           {/* Welcome Text */}
