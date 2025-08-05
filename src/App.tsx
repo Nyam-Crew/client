@@ -10,6 +10,7 @@ import Challenge from "./pages/Challenge";
 import Community from "./pages/Community";
 import Login from "./pages/Login";
 import MemberInfo from "./pages/MemberInfo";
+import MyPage from "./pages/MyPage";
 import Navigation from "./components/layout/Navigation";
 import NotFound from "./pages/NotFound";
 
@@ -31,7 +32,7 @@ const App = () => (
           <Route path="/member-info" element={<MemberInfo />} />
           <Route path="/chat" element={<Index />} />
           <Route path="/calendar" element={<Index />} />
-          <Route path="/profile" element={<Index />} />
+          <Route path="/profile" element={<MyPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
