@@ -12,6 +12,7 @@ All colors MUST be HSL.
     --brand-green: 79 42% 70%;        /* #c2d595 연녹색 */
     --brand-cream: 50 93% 89%;        /* #fef1c1 크림옐로우 */
     --brand-light: 60 100% 94%;       /* #ffffe1 라이트옐로우 */
+    --brand-teal: 182 35% 76%;        /* #A8DADC 파스텔 청록색 */
     
     /* 주요 컬러 시스템 */
     --background: 60 100% 98%;        /* 아주 연한 크림톤 배경 */
