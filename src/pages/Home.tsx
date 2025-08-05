@@ -71,25 +71,25 @@ const Home = () => {
         {/* 빠른 액션 버튼들 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Link to="/meal">
-            <Button className="w-full h-20 flex-col gap-2 bg-brand-teal hover:bg-brand-green text-foreground hover:text-white transition-all duration-300 hover:scale-105 shadow-sm hover:shadow-md">
+            <Button className="w-full h-20 flex-col gap-2 bg-brand-light hover:bg-brand-green text-foreground hover:text-white transition-all duration-300 hover:scale-105 shadow-sm hover:shadow-md">
               <PlusCircle size={24} />
               <span>식단 기록</span>
             </Button>
           </Link>
           <Link to="/challenge">
-            <Button className="w-full h-20 flex-col gap-2 bg-brand-teal hover:bg-brand-green text-foreground hover:text-white transition-all duration-300 hover:scale-105 shadow-sm hover:shadow-md">
+            <Button className="w-full h-20 flex-col gap-2 bg-brand-light hover:bg-brand-green text-foreground hover:text-white transition-all duration-300 hover:scale-105 shadow-sm hover:shadow-md">
               <Trophy size={24} />
               <span>챌린지</span>
             </Button>
           </Link>
           <Link to="/community">
-            <Button className="w-full h-20 flex-col gap-2 bg-brand-teal hover:bg-brand-green text-foreground hover:text-white transition-all duration-300 hover:scale-105 shadow-sm hover:shadow-md">
+            <Button className="w-full h-20 flex-col gap-2 bg-brand-light hover:bg-brand-green text-foreground hover:text-white transition-all duration-300 hover:scale-105 shadow-sm hover:shadow-md">
               <Users size={24} />
               <span>커뮤니티</span>
             </Button>
           </Link>
           <Link to="/chat">
-            <Button className="w-full h-20 flex-col gap-2 bg-brand-teal hover:bg-brand-green text-foreground hover:text-white transition-all duration-300 hover:scale-105 shadow-sm hover:shadow-md">
+            <Button className="w-full h-20 flex-col gap-2 bg-brand-light hover:bg-brand-green text-foreground hover:text-white transition-all duration-300 hover:scale-105 shadow-sm hover:shadow-md">
               <MessageCircle size={24} />
               <span>채팅</span>
             </Button>

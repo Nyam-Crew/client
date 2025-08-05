@@ -30,7 +30,6 @@ export default {
 					green: 'hsl(var(--brand-green))',
 					cream: 'hsl(var(--brand-cream))',
 					light: 'hsl(var(--brand-light))',
-					teal: 'hsl(var(--brand-teal))',
 				},
 				
 				primary: {
