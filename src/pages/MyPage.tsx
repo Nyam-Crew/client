@@ -221,17 +221,26 @@ const MyPage = () => {
                       )}
                     />
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-6">
                       <FormField
                         control={form.control}
                         name="weight"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>몸무게 (kg)</FormLabel>
+                            <FormLabel htmlFor="weight" className="text-sm font-medium text-foreground">
+                              몸무게 (kg)
+                            </FormLabel>
                             <FormControl>
-                              <Input type="number" placeholder="70" {...field} />
+                              <Input 
+                                id="weight"
+                                type="number" 
+                                placeholder="예: 70" 
+                                aria-describedby="weight-description"
+                                className="mt-1 focus:ring-2 focus:ring-primary/20"
+                                {...field} 
+                              />
                             </FormControl>
-                            <FormMessage />
+                            <FormMessage id="weight-description" />
                           </FormItem>
                         )}
                       />
@@ -241,11 +250,20 @@ const MyPage = () => {
                         name="height"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>키 (cm)</FormLabel>
+                            <FormLabel htmlFor="height" className="text-sm font-medium text-foreground">
+                              키 (cm)
+                            </FormLabel>
                             <FormControl>
-                              <Input type="number" placeholder="175" {...field} />
+                              <Input 
+                                id="height"
+                                type="number" 
+                                placeholder="예: 175" 
+                                aria-describedby="height-description"
+                                className="mt-1 focus:ring-2 focus:ring-primary/20"
+                                {...field} 
+                              />
                             </FormControl>
-                            <FormMessage />
+                            <FormMessage id="height-description" />
                           </FormItem>
                         )}
                       />
@@ -255,11 +273,20 @@ const MyPage = () => {
                         name="age"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>나이</FormLabel>
+                            <FormLabel htmlFor="age" className="text-sm font-medium text-foreground">
+                              나이
+                            </FormLabel>
                             <FormControl>
-                              <Input type="number" placeholder="28" {...field} />
+                              <Input 
+                                id="age"
+                                type="number" 
+                                placeholder="예: 28" 
+                                aria-describedby="age-description"
+                                className="mt-1 focus:ring-2 focus:ring-primary/20"
+                                {...field} 
+                              />
                             </FormControl>
-                            <FormMessage />
+                            <FormMessage id="age-description" />
                           </FormItem>
                         )}
                       />
