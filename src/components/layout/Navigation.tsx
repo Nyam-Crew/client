@@ -33,9 +33,6 @@ const Navigation = () => {
         <div className="flex items-center justify-between h-16">
           {/* 로고 */}
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">매</span>
-            </div>
             <span className="font-bold text-xl text-foreground">매일같이</span>
           </Link>
 
