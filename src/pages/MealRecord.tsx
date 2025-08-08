@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import MealCard from '@/components/meal/MealCard';
 import { 
   Plus, 
   Check,
@@ -27,6 +28,7 @@ const MealRecord = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedMeal, setSelectedMeal] = useState<string | null>(null);
   const [mealDialogOpen, setMealDialogOpen] = useState(false);
+  const [expandedMeal, setExpandedMeal] = useState<string | null>(null);
 
   const handleMealClick = (mealId: string) => {
     navigate(`/meal/${mealId}`);
@@ -34,6 +36,29 @@ const MealRecord = () => {
 
   const handleAddFoodClick = () => {
     navigate('/food-search');
+  };
+
+  const handleAddFood = (mealType: string) => {
+    navigate(`/food-search?mealType=${mealType}`);
+  };
+
+  const handleToggleExpand = (mealId: string) => {
+    setExpandedMeal(expandedMeal === mealId ? null : mealId);
+  };
+
+  const handleEditFood = (foodId: string) => {
+    console.log('Edit food:', foodId);
+    // TODO: Implement edit functionality
+  };
+
+  const handleDeleteFood = (foodId: string) => {
+    console.log('Delete food:', foodId);
+    // TODO: Implement delete functionality with confirmation
+  };
+
+  const handleWaterClick = () => {
+    console.log('Water tracking clicked');
+    // TODO: Implement water tracking functionality
   };
 
   const handleMealCardClick = (mealId: string, status: string) => {
@@ -69,13 +94,53 @@ const MealRecord = () => {
     fat: { percentage: 40, current: 30, target: 32 }
   };
 
-  // 식사별 데이터 (물 섭취 추가)
-  const meals = [
-    { id: 'breakfast', name: '아침', icon: Sun, status: 'completed', calories: null },
-    { id: 'lunch', name: '점심', icon: Mountain, status: 'completed', calories: 499 },
-    { id: 'dinner', name: '저녁', icon: Moon, status: 'empty', calories: null },
-    { id: 'snack', name: '간식', icon: Apple, status: 'completed', calories: 145 },
-    { id: 'water', name: '물', icon: Droplets, status: 'completed', amount: '1200ml' }
+  // 식사별 데이터
+  const mealCards = [
+    { 
+      id: 'breakfast', 
+      name: '아침', 
+      icon: Sun, 
+      totalKcal: 0,
+      foods: []
+    },
+    { 
+      id: 'lunch', 
+      name: '점심', 
+      icon: Mountain, 
+      totalKcal: 499,
+      foods: [
+        {
+          id: '1',
+          name: '당근라페 샌드위치',
+          amount: '1인분 (283g)',
+          kcal: 499,
+          carbs: 59,
+          protein: 21,
+          fat: 23
+        }
+      ]
+    },
+    { 
+      id: 'dinner', 
+      name: '저녁', 
+      icon: Moon, 
+      totalKcal: 0,
+      foods: []
+    },
+    { 
+      id: 'snack', 
+      name: '간식', 
+      icon: Apple, 
+      totalKcal: 145,
+      foods: [
+        {
+          id: '2',
+          name: '아몬드',
+          amount: '1줌 (28g)',
+          kcal: 145
+        }
+      ]
+    }
   ];
 
   const caloriePercentage = (todayStats.calories.current / todayStats.calories.target) * 100;
@@ -243,140 +308,62 @@ const MealRecord = () => {
         </TabsContent>
 
         {/* 먹었어요 탭 */}
-        <TabsContent value="whatIAte" className="px-4 pt-6 space-y-6 bg-white">
+        <TabsContent value="whatIAte" className="px-4 pt-6 pb-20 space-y-6 bg-white">
+          {/* 식사별 카드 - 2x2 그리드 */}
+          <div className="grid grid-cols-2 gap-4">
+            {mealCards.map((meal) => (
+              <MealCard
+                key={meal.id}
+                mealType={meal.id}
+                title={meal.name}
+                icon={meal.icon}
+                totalKcal={meal.totalKcal}
+                foods={meal.foods}
+                isCompleted={meal.foods.length > 0}
+                isExpanded={expandedMeal === meal.id}
+                onToggleExpand={() => handleToggleExpand(meal.id)}
+                onAddFood={handleAddFood}
+                onEditFood={handleEditFood}
+                onDeleteFood={handleDeleteFood}
+              />
+            ))}
+          </div>
 
-          {/* 식사별 카드 - 2x2 그리드에 물까지 5개 */}
-          <div className="space-y-4">
-            {/* 첫 번째 줄: 아침, 점심 */}
-            <div className="grid grid-cols-2 gap-4">
-              {meals.slice(0, 2).map((meal) => {
-                const IconComponent = meal.icon;
+          {/* 물 섭취 카드 (전체 폭) */}
+          <div className="w-full">
+            <Card 
+              className="border-none cursor-pointer transform hover:scale-105 transition-all duration-200 shadow-lg" 
+              style={{ backgroundColor: '#c2d595' }}
+              onClick={() => handleWaterClick()}
+            >
+              <CardContent className="p-6 text-center">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="text-blue-600">
+                    <Droplets size={32} />
+                  </div>
+                  <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                    <Check size={16} className="text-white" />
+                  </div>
+                </div>
                 
-                return (
-                  <Card 
-                    key={meal.id} 
-                    className="border-none cursor-pointer transform hover:scale-105 transition-all duration-200 shadow-lg" 
-                    style={{ backgroundColor: '#fef1c1' }}
-                    onClick={() => handleMealCardClick(meal.id, meal.status)}
-                  >
-                    <CardContent className="p-6 text-center">
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="text-amber-600">
-                          <IconComponent size={32} />
-                        </div>
-                        {meal.status === 'completed' ? (
-                          <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                            <Check size={16} className="text-white" />
-                          </div>
-                        ) : (
-                          <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center">
-                            <Plus size={16} className="text-gray-600" />
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="text-gray-800 mb-3 font-semibold text-lg">{meal.name}</div>
-                      
-                      {meal.status === 'completed' && meal.calories ? (
-                        <div className="text-gray-700 font-bold text-lg">{meal.calories}kcal</div>
-                      ) : meal.status === 'completed' ? (
-                        <div className="text-sm text-gray-600 bg-gray-100 rounded-full px-3 py-1 inline-block">✓ 단식했어요</div>
-                      ) : (
-                        <div className="text-sm text-gray-500">+ 추가하기</div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-            
-            {/* 두 번째 줄: 저녁, 간식 */}
-            <div className="grid grid-cols-2 gap-4">
-              {meals.slice(2, 4).map((meal) => {
-                const IconComponent = meal.icon;
-                
-                return (
-                  <Card 
-                    key={meal.id} 
-                    className="border-none cursor-pointer transform hover:scale-105 transition-all duration-200 shadow-lg" 
-                    style={{ backgroundColor: '#fef1c1' }}
-                    onClick={() => handleMealCardClick(meal.id, meal.status)}
-                  >
-                    <CardContent className="p-6 text-center">
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="text-amber-600">
-                          <IconComponent size={32} />
-                        </div>
-                        {meal.status === 'completed' ? (
-                          <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                            <Check size={16} className="text-white" />
-                          </div>
-                        ) : (
-                          <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center">
-                            <Plus size={16} className="text-gray-600" />
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="text-gray-800 mb-3 font-semibold text-lg">{meal.name}</div>
-                      
-                      {meal.status === 'completed' && meal.calories ? (
-                        <div className="text-gray-700 font-bold text-lg">{meal.calories}kcal</div>
-                      ) : meal.status === 'completed' ? (
-                        <div className="text-sm text-gray-600 bg-gray-100 rounded-full px-3 py-1 inline-block">✓ 단식했어요</div>
-                      ) : (
-                        <div className="text-sm text-gray-500">+ 추가하기</div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-            
-            {/* 세 번째 줄: 물 (전체 폭) */}
-            <div className="w-full">
-              {(() => {
-                const waterMeal = meals[4]; // 물 데이터
-                const IconComponent = waterMeal.icon;
-                
-                return (
-                  <Card 
-                    className="border-none cursor-pointer transform hover:scale-105 transition-all duration-200 shadow-lg" 
-                    style={{ backgroundColor: '#c2d595' }}
-                    onClick={() => waterMeal.status === 'empty' ? handleAddFoodClick() : handleMealClick(waterMeal.id)}
-                  >
-                    <CardContent className="p-6 text-center">
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="text-blue-600">
-                          <IconComponent size={32} />
-                        </div>
-                        {waterMeal.status === 'completed' ? (
-                          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                            <Check size={16} className="text-white" />
-                          </div>
-                        ) : (
-                          <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center">
-                            <Plus size={16} className="text-gray-600" />
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="text-gray-800 mb-3 font-semibold text-lg">{waterMeal.name}</div>
-                      
-                      {waterMeal.status === 'completed' && waterMeal.amount ? (
-                        <div className="text-gray-700 font-bold text-lg">{waterMeal.amount}</div>
-                      ) : (
-                        <div className="text-sm text-gray-500">+ 추가하기</div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })()}
-            </div>
+                <div className="text-gray-800 mb-3 font-semibold text-lg">물</div>
+                <div className="text-gray-700 font-bold text-lg">1200ml</div>
+              </CardContent>
+            </Card>
           </div>
 
         </TabsContent>
       </Tabs>
+
+      {/* 페이지 최하단 고정 버튼 */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4">
+        <Button 
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 text-lg font-medium"
+          onClick={() => handleAddFood('lunch')}
+        >
+          음식 추가
+        </Button>
+      </div>
 
       {/* 식사 등록 팝업 */}
       <Dialog open={mealDialogOpen} onOpenChange={setMealDialogOpen}>
