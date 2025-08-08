@@ -130,17 +130,19 @@ const MemberInfo = () => {
                 control={form.control}
                 name="nickname"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base font-medium">닉네임</FormLabel>
-                    <div className="flex gap-3">
-                      <FormControl>
-                        <Input
-                          {...field}
-                          onChange={(e) => handleNicknameChange(e.target.value)}
-                          placeholder="사용할 닉네임을 입력해주세요"
-                          className="flex-1"
-                        />
-                      </FormControl>
+                   <FormItem>
+                     <FormLabel htmlFor="nickname" className="text-base font-medium text-foreground">닉네임</FormLabel>
+                     <div className="flex gap-3">
+                       <FormControl>
+                         <Input
+                           id="nickname"
+                           {...field}
+                           onChange={(e) => handleNicknameChange(e.target.value)}
+                           placeholder="예: 건강한라이프"
+                           className="flex-1 focus:ring-2 focus:ring-primary/20"
+                           aria-describedby="nickname-description"
+                         />
+                       </FormControl>
                       <Button
                         type="button"
                         variant="outline"
@@ -151,105 +153,117 @@ const MemberInfo = () => {
                         {nicknameCheckLoading ? "확인중..." : "중복확인"}
                       </Button>
                     </div>
-                    {isNicknameChecked && (
-                      <p className="text-sm text-success font-medium">✓ 사용 가능한 닉네임입니다</p>
-                    )}
-                    <FormMessage />
+                     {isNicknameChecked && (
+                       <p id="nickname-description" className="text-sm text-success font-medium">✓ 사용 가능한 닉네임입니다</p>
+                     )}
+                     <FormMessage id="nickname-error" />
                   </FormItem>
                 )}
               />
 
-              {/* 성별 */}
-              <FormField
-                control={form.control}
-                name="gender"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base font-medium">성별</FormLabel>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        className="flex gap-8"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="female" id="female" />
-                          <Label htmlFor="female">여</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="male" id="male" />
-                          <Label htmlFor="male">남</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="none" id="none" />
-                          <Label htmlFor="none">없음</Label>
-                        </div>
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+               {/* 성별 */}
+               <FormField
+                 control={form.control}
+                 name="gender"
+                 render={({ field }) => (
+                   <FormItem>
+                     <FormLabel className="text-base font-medium text-foreground">성별</FormLabel>
+                     <FormControl>
+                       <RadioGroup
+                         onValueChange={field.onChange}
+                         defaultValue={field.value}
+                         className="flex gap-8"
+                         aria-describedby="gender-description"
+                       >
+                         <div className="flex items-center space-x-2">
+                           <RadioGroupItem value="female" id="female" />
+                           <Label htmlFor="female" className="text-foreground cursor-pointer">여성</Label>
+                         </div>
+                         <div className="flex items-center space-x-2">
+                           <RadioGroupItem value="male" id="male" />
+                           <Label htmlFor="male" className="text-foreground cursor-pointer">남성</Label>
+                         </div>
+                         <div className="flex items-center space-x-2">
+                           <RadioGroupItem value="none" id="none" />
+                           <Label htmlFor="none" className="text-foreground cursor-pointer">선택 안함</Label>
+                         </div>
+                       </RadioGroup>
+                     </FormControl>
+                     <FormMessage id="gender-description" />
+                   </FormItem>
                 )}
               />
 
-              {/* 몸무게 */}
-              <FormField
-                control={form.control}
-                name="weight"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base font-medium">몸무게 (kg)</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        onKeyDown={handleNumberInput}
-                        placeholder="몸무게를 입력해주세요"
-                        inputMode="numeric"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+               <div className="space-y-6">
+                 {/* 몸무게 */}
+                 <FormField
+                   control={form.control}
+                   name="weight"
+                   render={({ field }) => (
+                     <FormItem>
+                       <FormLabel htmlFor="weight" className="text-base font-medium text-foreground">몸무게 (kg)</FormLabel>
+                       <FormControl>
+                         <Input
+                           id="weight"
+                           {...field}
+                           onKeyDown={handleNumberInput}
+                           placeholder="예: 65"
+                           inputMode="numeric"
+                           className="mt-2 focus:ring-2 focus:ring-primary/20"
+                           aria-describedby="weight-description"
+                         />
+                       </FormControl>
+                       <FormMessage id="weight-description" />
+                     </FormItem>
+                   )}
+                 />
 
-              {/* 키 */}
-              <FormField
-                control={form.control}
-                name="height"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base font-medium">키 (cm)</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        onKeyDown={handleNumberInput}
-                        placeholder="키를 입력해주세요"
-                        inputMode="numeric"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                 {/* 키 */}
+                 <FormField
+                   control={form.control}
+                   name="height"
+                   render={({ field }) => (
+                     <FormItem>
+                       <FormLabel htmlFor="height" className="text-base font-medium text-foreground">키 (cm)</FormLabel>
+                       <FormControl>
+                         <Input
+                           id="height"
+                           {...field}
+                           onKeyDown={handleNumberInput}
+                           placeholder="예: 170"
+                           inputMode="numeric"
+                           className="mt-2 focus:ring-2 focus:ring-primary/20"
+                           aria-describedby="height-description"
+                         />
+                       </FormControl>
+                       <FormMessage id="height-description" />
+                     </FormItem>
+                   )}
+                 />
 
-              {/* 나이 */}
-              <FormField
-                control={form.control}
-                name="age"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-base font-medium">나이</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        onKeyDown={handleNumberInput}
-                        placeholder="나이를 입력해주세요"
-                        inputMode="numeric"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                 {/* 나이 */}
+                 <FormField
+                   control={form.control}
+                   name="age"
+                   render={({ field }) => (
+                     <FormItem>
+                       <FormLabel htmlFor="age" className="text-base font-medium text-foreground">나이</FormLabel>
+                       <FormControl>
+                         <Input
+                           id="age"
+                           {...field}
+                           onKeyDown={handleNumberInput}
+                           placeholder="예: 28"
+                           inputMode="numeric"
+                           className="mt-2 focus:ring-2 focus:ring-primary/20"
+                           aria-describedby="age-description"
+                         />
+                       </FormControl>
+                       <FormMessage id="age-description" />
+                     </FormItem>
+                   )}
+                 />
+               </div>
 
               {/* 완료 버튼 */}
               <div className="pt-6">

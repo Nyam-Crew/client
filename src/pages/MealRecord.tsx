@@ -133,142 +133,112 @@ const MealRecord = () => {
         </div>
 
         {/* 나의 하루 탭 */}
-        <TabsContent value="myDay" className="px-4 pt-6 space-y-6 bg-white">
+        <TabsContent value="myDay" className="px-6 pt-8 pb-8 bg-gradient-to-b from-background to-accent/20 min-h-screen">
+          
+          {/* 1. 상단: 섭취/목표 칼로리 */}
+          <div className="text-center mb-8">
+            <div className="text-foreground">
+              <span className="text-5xl font-bold">{todayStats.calories.current}</span>
+              <span className="text-2xl text-muted-foreground">/{todayStats.calories.target}kcal</span>
+            </div>
+          </div>
+          
+          {/* 2. 바로 아래: 탄/단/지 비율 컬러 동그라미 */}
+          <div className="flex justify-center gap-8 mb-12">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-red-400 rounded-full" aria-hidden="true"></div>
+              <span className="text-foreground font-medium">탄 {todayStats.carbs.percentage}%</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-yellow-400 rounded-full" aria-hidden="true"></div>
+              <span className="text-foreground font-medium">단 {todayStats.protein.percentage}%</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-blue-600 rounded-full" aria-hidden="true"></div>
+              <span className="text-foreground font-medium">지 {todayStats.fat.percentage}%</span>
+            </div>
+          </div>
 
-          {/* 칼로리 메인 표시 */}
-          <div className="text-center text-gray-800">
-            <div className="text-5xl font-bold mb-4 text-gray-800">
-              {todayStats.calories.current}
-              <span className="text-2xl text-gray-600">/{todayStats.calories.target}kcal</span>
+          {/* 3. 중앙: 귀여운 일러스트 + 컬러 아치 */}
+          <div className="relative mb-12 flex justify-center">
+            {/* 상단 아치 */}
+            <div className="absolute -top-8 left-1/2 transform -translate-x-1/2">
+              <div className="w-32 h-16 rounded-t-full bg-gradient-to-r from-brand-green/30 via-brand-cream/50 to-brand-green/30"></div>
             </div>
             
-            {/* 매크로 영양소 퍼센트 */}
-            <div className="flex justify-center gap-8 mb-6">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-red-400 rounded-full"></div>
-                <span className="text-gray-800 font-medium">탄 {todayStats.carbs.percentage}%</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-yellow-400 rounded-full"></div>
-                <span className="text-gray-800 font-medium">단 {todayStats.protein.percentage}%</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-blue-600 rounded-full"></div>
-                <span className="text-gray-800 font-medium">지 {todayStats.fat.percentage}%</span>
-              </div>
+            {/* 일러스트 */}
+            <div className="relative z-10 p-4 bg-white/80 rounded-full shadow-lg">
+              <img 
+                src="/cute-food-illustration.png" 
+                alt="귀여운 건강식품 캐릭터들" 
+                className="w-24 h-24 object-contain"
+              />
             </div>
-
-            {/* 탄단지 비율 도넛 차트 */}
-            <div className="mb-6 py-8 flex justify-center">
-              <div className="relative w-32 h-32">
-                {/* 도넛 차트 배경 */}
-                <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 36 36">
-                  {/* 배경 원 */}
-                  <path
-                    d="M18 2.0845
-                      a 15.9155 15.9155 0 0 1 0 31.831
-                      a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="#f3f4f6"
-                    strokeWidth="3"
-                  />
-                  
-                  {/* 탄수화물 (빨강) */}
-                  <path
-                    d="M18 2.0845
-                      a 15.9155 15.9155 0 0 1 0 31.831
-                      a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="#f87171"
-                    strokeWidth="3"
-                    strokeDasharray={`${todayStats.carbs.percentage} ${100 - todayStats.carbs.percentage}`}
-                    strokeDashoffset="0"
-                  />
-                  
-                  {/* 단백질 (노랑) */}
-                  <path
-                    d="M18 2.0845
-                      a 15.9155 15.9155 0 0 1 0 31.831
-                      a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="#fbbf24"
-                    strokeWidth="3"
-                    strokeDasharray={`${todayStats.protein.percentage} ${100 - todayStats.protein.percentage}`}
-                    strokeDashoffset={`-${todayStats.carbs.percentage}`}
-                  />
-                  
-                  {/* 지방 (파랑) */}
-                  <path
-                    d="M18 2.0845
-                      a 15.9155 15.9155 0 0 1 0 31.831
-                      a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="#3b82f6"
-                    strokeWidth="3"
-                    strokeDasharray={`${todayStats.fat.percentage} ${100 - todayStats.fat.percentage}`}
-                    strokeDashoffset={`-${todayStats.carbs.percentage + todayStats.protein.percentage}`}
-                  />
-                </svg>
-                
-                {/* 중앙 텍스트 */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-gray-800">탄단지</div>
-                    <div className="text-xs text-gray-600">균형</div>
-                  </div>
-                </div>
-              </div>
+            
+            {/* 하단 아치 */}
+            <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2">
+              <div className="w-40 h-20 rounded-b-full bg-gradient-to-r from-brand-cream/40 via-brand-green/60 to-brand-cream/40"></div>
             </div>
+          </div>
 
-            {/* 칼로리 정보 */}
-            <div className="text-center mb-6 text-gray-800">
-              <div className="flex justify-center items-center gap-4 text-sm">
-                <span className="flex items-center gap-1">
-                  🔥 {todayStats.calories.target - todayStats.calories.current}kcal 소모
-                </span>
-                <span>|</span>
-                <span className="text-green-700">
-                  {todayStats.calories.target - todayStats.calories.current}kcal 더 먹을 수 있어요
+          {/* 4. 하단: 소모/남은 칼로리 */}
+          <div className="text-center mb-8">
+            <div className="flex justify-center items-center gap-6 text-sm">
+              <span className="flex items-center gap-2 text-foreground">
+                <span role="img" aria-label="불꽃">🔥</span>
+                <span>{todayStats.calories.target - todayStats.calories.current}kcal 소모</span>
+              </span>
+              <span className="text-success font-medium">
+                {todayStats.calories.target - todayStats.calories.current}kcal 더 먹을 수 있어요
+              </span>
+            </div>
+          </div>
+
+          {/* 5. 영양소별 Progress Bar */}
+          <div className="space-y-6" role="region" aria-label="영양소 섭취 현황">
+            
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="text-sm font-medium text-foreground">탄수화물</label>
+                <span className="text-sm font-bold text-foreground">
+                  {todayStats.carbs.current}/{todayStats.carbs.target}g
                 </span>
               </div>
+              <Progress 
+                value={todayStats.carbs.percentage} 
+                className="w-full h-3"
+                aria-label={`탄수화물 섭취량: ${todayStats.carbs.current}g / ${todayStats.carbs.target}g`}
+              />
             </div>
-
-            {/* 상세 영양소 */}
-            <div className="space-y-4 text-gray-800">
+            
+            <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <span>순탄수</span>
-                <div className="text-right flex items-center gap-3">
-                  <span className="font-bold">{todayStats.carbs.current}/{todayStats.carbs.target}g</span>
-                  <Progress value={todayStats.carbs.percentage} className="w-24 h-2" />
-                </div>
+                <label className="text-sm font-medium text-foreground">단백질</label>
+                <span className="text-sm font-bold text-foreground">
+                  {todayStats.protein.current}/{todayStats.protein.target}g
+                </span>
               </div>
-              
-              <div className="flex justify-between items-center">
-                <span>단백질</span>
-                <div className="text-right flex items-center gap-3">
-                  <span className="font-bold">{todayStats.protein.current}/{todayStats.protein.target}g</span>
-                  <Progress value={todayStats.protein.percentage} className="w-24 h-2" />
-                </div>
-              </div>
-              
-              <div className="flex justify-between items-center">
-                <span>지방</span>
-                <div className="text-right flex items-center gap-3">
-                  <span className="font-bold">{todayStats.fat.current}/{todayStats.fat.target}g</span>
-                  <Progress value={todayStats.fat.percentage} className="w-24 h-2" />
-                </div>
-              </div>
-              
-              <div className="flex justify-between items-center">
-                <span>물 섭취</span>
-                <div className="text-right flex items-center gap-3">
-                  <span className="font-bold">1200ml</span>
-                  <div className="w-24 h-2 bg-blue-100 rounded-full">
-                    <div className="h-full bg-blue-500 rounded-full" style={{ width: '60%' }}></div>
-                  </div>
-                </div>
-              </div>
+              <Progress 
+                value={todayStats.protein.percentage} 
+                className="w-full h-3"
+                aria-label={`단백질 섭취량: ${todayStats.protein.current}g / ${todayStats.protein.target}g`}
+              />
             </div>
+            
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="text-sm font-medium text-foreground">지방</label>
+                <span className="text-sm font-bold text-foreground">
+                  {todayStats.fat.current}/{todayStats.fat.target}g
+                </span>
+              </div>
+              <Progress 
+                value={todayStats.fat.percentage} 
+                className="w-full h-3"
+                aria-label={`지방 섭취량: ${todayStats.fat.current}g / ${todayStats.fat.target}g`}
+              />
+            </div>
+            
           </div>
         </TabsContent>
 

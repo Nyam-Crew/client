@@ -139,14 +139,17 @@ const Community = () => {
             <Card>
               <CardContent className="p-4">
                 <div className="space-y-4">
-                  {/* 검색바 */}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={20} />
-                    <Input 
-                      placeholder="궁금한 내용을 검색해보세요"
-                      className="pl-10"
-                    />
-                  </div>
+                   {/* 검색바 */}
+                   <div className="relative">
+                     <label htmlFor="community-search" className="sr-only">커뮤니티 검색</label>
+                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={20} aria-hidden="true" />
+                     <Input 
+                       id="community-search"
+                       placeholder="궁금한 내용을 검색해보세요"
+                       className="pl-10 focus:ring-2 focus:ring-primary/20"
+                       aria-label="커뮤니티 검색"
+                     />
+                   </div>
 
                   {/* 카테고리 */}
                   <div className="flex gap-2 flex-wrap">
