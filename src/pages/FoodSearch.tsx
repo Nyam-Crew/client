@@ -12,6 +12,9 @@ interface FoodItem {
   name: string;
   kcalPer100g: number;
   category?: string;
+  carbohydratesPer100g: number;
+  proteinPer100g: number;
+  fatPer100g: number;
 }
 
 const FoodSearch = () => {
@@ -33,31 +36,73 @@ const FoodSearch = () => {
       id: '1',
       name: '당근라페 샌드위치',
       kcalPer100g: 176,
-      category: '샌드위치'
+      category: '샌드위치',
+      carbohydratesPer100g: 22,
+      proteinPer100g: 8,
+      fatPer100g: 7
     },
     {
       id: '2',
       name: '닭가슴살 샐러드',
       kcalPer100g: 165,
-      category: '샐러드'
+      category: '샐러드',
+      carbohydratesPer100g: 12,
+      proteinPer100g: 25,
+      fatPer100g: 4
     },
     {
       id: '3',
       name: '현미밥',
       kcalPer100g: 350,
-      category: '밥류'
+      category: '밥류',
+      carbohydratesPer100g: 72,
+      proteinPer100g: 7,
+      fatPer100g: 3
     },
     {
       id: '4',
       name: '사과',
       kcalPer100g: 52,
-      category: '과일'
+      category: '과일',
+      carbohydratesPer100g: 14,
+      proteinPer100g: 0.3,
+      fatPer100g: 0.2
     },
     {
       id: '5',
       name: '바나나',
       kcalPer100g: 89,
-      category: '과일'
+      category: '과일',
+      carbohydratesPer100g: 23,
+      proteinPer100g: 1.1,
+      fatPer100g: 0.3
+    },
+    {
+      id: '6',
+      name: '파스타',
+      kcalPer100g: 371,
+      category: '면류',
+      carbohydratesPer100g: 75,
+      proteinPer100g: 13,
+      fatPer100g: 1.1
+    },
+    {
+      id: '7',
+      name: '토마토 파스타',
+      kcalPer100g: 180,
+      category: '면류',
+      carbohydratesPer100g: 26,
+      proteinPer100g: 6,
+      fatPer100g: 6
+    },
+    {
+      id: '8',
+      name: '크림 파스타',
+      kcalPer100g: 220,
+      category: '면류',
+      carbohydratesPer100g: 28,
+      proteinPer100g: 8,
+      fatPer100g: 9
     }
   ];
 
@@ -105,6 +150,15 @@ const FoodSearch = () => {
   const calculateKcal = () => {
     if (!selectedFood) return 0;
     return Math.round((selectedFood.kcalPer100g * gramsAmount) / 100);
+  };
+
+  const calculateNutrients = () => {
+    if (!selectedFood) return { carbohydrates: 0, protein: 0, fat: 0 };
+    return {
+      carbohydrates: Math.round((selectedFood.carbohydratesPer100g * gramsAmount) / 100 * 10) / 10,
+      protein: Math.round((selectedFood.proteinPer100g * gramsAmount) / 100 * 10) / 10,
+      fat: Math.round((selectedFood.fatPer100g * gramsAmount) / 100 * 10) / 10
+    };
   };
 
   const handleAdd = async () => {
@@ -226,11 +280,25 @@ const FoodSearch = () => {
           
           {selectedFood && (
             <div className="space-y-6">
-              {/* Food Info */}
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground mb-2">
+              {/* Food Info with Nutrition */}
+              <div className="text-center space-y-3">
+                <p className="text-sm text-muted-foreground">
                   100g 당 {selectedFood.kcalPer100g}kcal
                 </p>
+                <div className="grid grid-cols-3 gap-3 text-xs">
+                  <div className="bg-red-50 dark:bg-red-950/20 p-2 rounded">
+                    <div className="text-red-600 dark:text-red-400 font-medium">탄수화물</div>
+                    <div className="text-foreground">{selectedFood.carbohydratesPer100g}g</div>
+                  </div>
+                  <div className="bg-yellow-50 dark:bg-yellow-950/20 p-2 rounded">
+                    <div className="text-yellow-600 dark:text-yellow-400 font-medium">단백질</div>
+                    <div className="text-foreground">{selectedFood.proteinPer100g}g</div>
+                  </div>
+                  <div className="bg-blue-50 dark:bg-blue-950/20 p-2 rounded">
+                    <div className="text-blue-600 dark:text-blue-400 font-medium">지방</div>
+                    <div className="text-foreground">{selectedFood.fatPer100g}g</div>
+                  </div>
+                </div>
               </div>
 
               {/* Gram Input */}
@@ -292,13 +360,29 @@ const FoodSearch = () => {
                 </div>
               </div>
 
-              {/* Calorie Preview */}
-              <div className="bg-muted p-4 rounded-lg text-center">
-                <div className="text-2xl font-bold text-foreground mb-1">
-                  {calculateKcal()}kcal
+              {/* Calorie and Nutrients Preview */}
+              <div className="bg-muted p-4 rounded-lg">
+                <div className="text-center mb-4">
+                  <div className="text-2xl font-bold text-foreground mb-1">
+                    {calculateKcal()}kcal
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    예상 칼로리
+                  </div>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  예상 칼로리
+                <div className="grid grid-cols-3 gap-3 text-xs">
+                  <div className="bg-red-50 dark:bg-red-950/20 p-2 rounded text-center">
+                    <div className="text-red-600 dark:text-red-400 font-medium">탄수화물</div>
+                    <div className="text-foreground font-bold">{calculateNutrients().carbohydrates}g</div>
+                  </div>
+                  <div className="bg-yellow-50 dark:bg-yellow-950/20 p-2 rounded text-center">
+                    <div className="text-yellow-600 dark:text-yellow-400 font-medium">단백질</div>
+                    <div className="text-foreground font-bold">{calculateNutrients().protein}g</div>
+                  </div>
+                  <div className="bg-blue-50 dark:bg-blue-950/20 p-2 rounded text-center">
+                    <div className="text-blue-600 dark:text-blue-400 font-medium">지방</div>
+                    <div className="text-foreground font-bold">{calculateNutrients().fat}g</div>
+                  </div>
                 </div>
               </div>
 
