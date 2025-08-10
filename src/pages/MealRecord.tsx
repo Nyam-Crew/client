@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import MealCard from '@/components/meal/MealCard';
+import WaterIntakeDialog from '@/components/water/WaterIntakeDialog';
 import { 
   Plus, 
   Check,
@@ -29,6 +30,8 @@ const MealRecord = () => {
   const [selectedMeal, setSelectedMeal] = useState<string | null>(null);
   const [mealDialogOpen, setMealDialogOpen] = useState(false);
   const [expandedMeal, setExpandedMeal] = useState<string | null>(null);
+  const [waterDialogOpen, setWaterDialogOpen] = useState(false);
+  const [waterAmount, setWaterAmount] = useState(1200);
 
   const handleMealClick = (mealId: string) => {
     navigate(`/meal/${mealId}`);
@@ -57,8 +60,13 @@ const MealRecord = () => {
   };
 
   const handleWaterClick = () => {
-    console.log('Water tracking clicked');
-    // TODO: Implement water tracking functionality
+    setWaterDialogOpen(true);
+  };
+
+  const handleWaterSave = (amount: number) => {
+    setWaterAmount(amount);
+    // TODO: Save to API
+    console.log('Water amount saved:', amount);
   };
 
   const handleMealCardClick = (mealId: string, status: string) => {
@@ -347,7 +355,7 @@ const MealRecord = () => {
                 </div>
                 
                 <div className="text-gray-800 mb-3 font-semibold text-lg">물</div>
-                <div className="text-gray-700 font-bold text-lg">1200ml</div>
+                <div className="text-gray-700 font-bold text-lg">{waterAmount}ml</div>
               </CardContent>
             </Card>
           </div>
@@ -479,6 +487,14 @@ const MealRecord = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* 물 섭취량 다이얼로그 */}
+      <WaterIntakeDialog
+        open={waterDialogOpen}
+        onOpenChange={setWaterDialogOpen}
+        currentAmount={waterAmount}
+        onSave={handleWaterSave}
+      />
     </div>
   );
 };
