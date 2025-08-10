@@ -3,35 +3,15 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { 
-  ArrowLeft, 
-  Search, 
-  Star,
-  Plus,
-  Minus,
-  ShoppingBasket,
-  Sparkles
-} from 'lucide-react';
+import { ArrowLeft, Search, Plus, Minus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface FoodItem {
   id: string;
   name: string;
-  defaultServing: string;
   kcalPer100g: number;
-  defaultKcal: number;
-  carbs?: number;
-  protein?: number;
-  fat?: number;
-}
-
-interface BasketItem extends FoodItem {
-  quantity: number;
-  selectedUnit: 'serving' | 'gram';
-  totalKcal: number;
+  category?: string;
 }
 
 const FoodSearch = () => {
@@ -39,15 +19,12 @@ const FoodSearch = () => {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   
-  const defaultMealType = searchParams.get('mealType') || 'breakfast';
-  const [selectedMealType, setSelectedMealType] = useState(defaultMealType);
+  const mealType = searchParams.get('mealType') || 'breakfast';
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searchResults, setSearchResults] = useState<FoodItem[]>([]);
-  const [basket, setBasket] = useState<BasketItem[]>([]);
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-  const [quantity, setQuantity] = useState(1);
-  const [selectedUnit, setSelectedUnit] = useState<'serving' | 'gram'>('serving');
+  const [gramsAmount, setGramsAmount] = useState(100);
   const [isLoading, setIsLoading] = useState(false);
 
   // Mock data for search results
@@ -55,41 +32,41 @@ const FoodSearch = () => {
     {
       id: '1',
       name: '당근라페 샌드위치',
-      defaultServing: '1인분 (283g)',
       kcalPer100g: 176,
-      defaultKcal: 499,
-      carbs: 59,
-      protein: 21,
-      fat: 23
+      category: '샌드위치'
     },
     {
       id: '2',
       name: '닭가슴살 샐러드',
-      defaultServing: '1인분 (200g)',
       kcalPer100g: 165,
-      defaultKcal: 330,
-      carbs: 12,
-      protein: 35,
-      fat: 8
+      category: '샐러드'
     },
     {
       id: '3',
       name: '현미밥',
-      defaultServing: '1공기 (150g)',
       kcalPer100g: 350,
-      defaultKcal: 525,
-      carbs: 73,
-      protein: 8,
-      fat: 3
+      category: '밥류'
+    },
+    {
+      id: '4',
+      name: '사과',
+      kcalPer100g: 52,
+      category: '과일'
+    },
+    {
+      id: '5',
+      name: '바나나',
+      kcalPer100g: 89,
+      category: '과일'
     }
   ];
 
-  const mealTypes = [
-    { id: 'breakfast', label: '아침' },
-    { id: 'lunch', label: '점심' },
-    { id: 'dinner', label: '저녁' },
-    { id: 'snack', label: '간식' }
-  ];
+  const mealTypeLabels = {
+    breakfast: '아침',
+    lunch: '점심',
+    dinner: '저녁',
+    snack: '간식'
+  };
 
   useEffect(() => {
     if (searchKeyword.length >= 2) {
@@ -102,8 +79,8 @@ const FoodSearch = () => {
   const handleSearch = async () => {
     setIsLoading(true);
     try {
-      // Mock API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Mock API call: GET /api/food/search?keyword={kw}
+      await new Promise(resolve => setTimeout(resolve, 300));
       const filtered = mockFoodData.filter(food => 
         food.name.toLowerCase().includes(searchKeyword.toLowerCase())
       );
@@ -121,320 +98,222 @@ const FoodSearch = () => {
 
   const handleFoodClick = (food: FoodItem) => {
     setSelectedFood(food);
-    setQuantity(1);
-    setSelectedUnit('serving');
+    setGramsAmount(100);
     setDetailDialogOpen(true);
   };
 
   const calculateKcal = () => {
     if (!selectedFood) return 0;
-    if (selectedUnit === 'serving') {
-      return selectedFood.defaultKcal * quantity;
-    } else {
-      return Math.round((selectedFood.kcalPer100g * quantity) / 100);
-    }
+    return Math.round((selectedFood.kcalPer100g * gramsAmount) / 100);
   };
 
-  const addToBasket = () => {
+  const handleAdd = async () => {
     if (!selectedFood) return;
     
-    const basketItem: BasketItem = {
-      ...selectedFood,
-      quantity,
-      selectedUnit,
-      totalKcal: calculateKcal()
-    };
-    
-    setBasket(prev => [...prev, basketItem]);
-    setDetailDialogOpen(false);
-    
-    toast({
-      title: "담기 완료",
-      description: `${selectedFood.name}이(가) 바구니에 추가되었습니다.`
-    });
-  };
-
-  const removeFromBasket = (index: number) => {
-    setBasket(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const getTotalKcal = () => {
-    return basket.reduce((sum, item) => sum + item.totalKcal, 0);
-  };
-
-  const handleRecord = async () => {
-    if (basket.length === 0) return;
-    
     try {
-      // Mock API calls for each item
-      for (const item of basket) {
-        console.log('Recording:', {
-          memberId: 'user123',
-          foodId: item.id,
-          intakeAmount: item.quantity,
-          mealType: selectedMealType.toUpperCase(),
-          date: new Date().toISOString().split('T')[0]
-        });
-      }
+      // Mock API call: POST /api/meal/log
+      const requestBody = {
+        memberId: "user123", // Should come from auth context
+        foodId: selectedFood.id,
+        mealType: mealType.toUpperCase(),
+        intakeAmountUnit: "GRAM",
+        intakeAmount: gramsAmount,
+        date: new Date().toISOString().split('T')[0]
+      };
+      
+      console.log('Recording meal:', requestBody);
+      
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       toast({
-        title: "기록되었습니다",
-        description: `${basket.length}개 음식이 성공적으로 기록되었습니다.`
+        title: "추가되었습니다",
+        description: `${selectedFood.name} ${gramsAmount}g이 기록되었습니다.`
       });
       
+      setDetailDialogOpen(false);
       navigate('/meal-record');
     } catch (error) {
       toast({
         title: "기록 실패",
-        description: "기록 중 오류가 발생했습니다. 다시 시도해주세요.",
+        description: "네트워크 오류, 다시 시도해주세요",
         variant: "destructive"
       });
     }
   };
 
+  const adjustGrams = (increment: number) => {
+    setGramsAmount(prev => Math.max(1, Math.min(2000, prev + increment)));
+  };
+
   return (
-    <div className="min-h-screen bg-white">
-      {/* 헤더 */}
-      <div className="bg-white border-b px-4 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/meal-record')}
-              className="p-2"
-            >
-              <ArrowLeft size={20} />
-            </Button>
-            <h1 className="text-lg font-semibold">음식 추가</h1>
-          </div>
-          <Button variant="outline" size="sm">
-            세트 저장
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="bg-background border-b px-4 py-4">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/meal-record')}
+            className="p-2"
+          >
+            <ArrowLeft size={20} />
           </Button>
+          <h1 className="text-lg font-semibold text-foreground">
+            {mealTypeLabels[mealType as keyof typeof mealTypeLabels]} / 음식 등록
+          </h1>
         </div>
       </div>
 
-      {/* 식사 시간대 선택 */}
-      <div className="px-4 py-4 bg-gray-50">
-        <div className="flex gap-2">
-          {mealTypes.map((meal) => (
-            <Button
-              key={meal.id}
-              variant={selectedMealType === meal.id ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSelectedMealType(meal.id)}
-              className="flex-1"
-            >
-              {meal.label}
-            </Button>
-          ))}
+      {/* Search Section */}
+      <div className="flex-1 px-4 py-6">
+        {/* Search Input */}
+        <div className="relative mb-6">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={20} />
+          <Input
+            placeholder="무슨 음식을 드셨나요?"
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            className="pl-10 h-12"
+          />
         </div>
-      </div>
 
-      {/* 검색 탭 */}
-      <div className="flex-1 px-4">
-        <Tabs defaultValue="search" className="w-full">
-          <TabsList className="w-full grid grid-cols-4">
-            <TabsTrigger value="search">음식 검색</TabsTrigger>
-            <TabsTrigger value="ai">AI 검색</TabsTrigger>
-            <TabsTrigger value="favorites">즐겨찾기</TabsTrigger>
-            <TabsTrigger value="manual">직접 등록</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="search" className="space-y-4">
-            {/* 검색 입력 */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-              <Input
-                placeholder="무슨 음식을 드셨나요?"
-                value={searchKeyword}
-                onChange={(e) => setSearchKeyword(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-
-            {/* 검색 결과 */}
-            <div className="space-y-3">
-              {isLoading ? (
-                <div className="text-center py-8 text-gray-500">검색 중...</div>
-              ) : searchResults.length > 0 ? (
-                searchResults.map((food) => (
-                  <Card 
-                    key={food.id} 
-                    className="cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => handleFoodClick(food)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h3 className="font-medium text-gray-800">{food.name}</h3>
-                          <p className="text-sm text-gray-600">{food.defaultServing}</p>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-bold text-lg">{food.defaultKcal}kcal</div>
-                          <div className="text-xs text-gray-500">기본 1인분</div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              ) : searchKeyword.length >= 2 ? (
-                <div className="text-center py-8 text-gray-500">검색 결과가 없습니다.</div>
-              ) : (
-                <div className="text-center py-8 text-gray-400">2글자 이상 입력해주세요.</div>
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="ai" className="space-y-4">
-            <div className="text-center py-12 text-gray-500">
-              <Sparkles size={48} className="mx-auto mb-4 text-gray-300" />
-              <p>AI 검색 기능은 준비 중입니다.</p>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="favorites" className="space-y-4">
-            <div className="text-center py-12 text-gray-500">
-              <Star size={48} className="mx-auto mb-4 text-gray-300" />
-              <p>즐겨찾기한 음식이 없습니다.</p>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="manual" className="space-y-4">
-            <div className="text-center py-12 text-gray-500">
-              <Plus size={48} className="mx-auto mb-4 text-gray-300" />
-              <p>직접 등록 기능은 준비 중입니다.</p>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      {/* 선택 바구니 (하단 고정) */}
-      {basket.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg">
-          <div className="px-4 py-4">
-            <div className="mb-3">
-              <div className="flex items-center gap-2 mb-2">
-                <ShoppingBasket size={16} className="text-blue-600" />
-                <span className="font-medium text-gray-800">선택한 음식 ({basket.length}개)</span>
-              </div>
-              <div className="space-y-2 max-h-32 overflow-y-auto">
-                {basket.map((item, index) => (
-                  <div key={index} className="flex items-center justify-between text-sm">
-                    <span className="flex-1">{item.name}</span>
-                    <span className="text-gray-600 mx-2">
-                      {item.quantity}{item.selectedUnit === 'serving' ? '인분' : 'g'}
-                    </span>
-                    <span className="font-bold">{item.totalKcal}kcal</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="p-1 ml-2"
-                      onClick={() => removeFromBasket(index)}
-                    >
-                      <Minus size={14} />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-            
-            <div className="flex items-center justify-between mb-3">
-              <span className="font-bold text-lg">총 {getTotalKcal()}kcal</span>
-              <Button 
-                className="bg-black hover:bg-gray-800 text-white px-8"
-                onClick={handleRecord}
+        {/* Search Results */}
+        <div className="space-y-3">
+          {isLoading ? (
+            <div className="text-center py-12 text-muted-foreground">검색 중...</div>
+          ) : searchResults.length > 0 ? (
+            searchResults.map((food) => (
+              <Card 
+                key={food.id} 
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => handleFoodClick(food)}
               >
-                기록하기
-              </Button>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h3 className="font-medium text-foreground">{food.name}</h3>
+                      {food.category && (
+                        <p className="text-sm text-muted-foreground">{food.category}</p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-lg text-foreground">{food.kcalPer100g}kcal</div>
+                      <div className="text-xs text-muted-foreground">100g 당</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          ) : searchKeyword.length >= 2 ? (
+            <div className="text-center py-12 text-muted-foreground">검색 결과가 없습니다.</div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <div className="mb-4">🔍</div>
+              <p>검색어를 입력해 주세요</p>
+              <p className="text-sm mt-1">2글자 이상 입력해주세요</p>
             </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
-      {/* 음식 상세 다이얼로그 */}
+      {/* Food Detail Dialog */}
       <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
         <DialogContent className="w-[90%] max-w-md">
           <DialogHeader>
-            <DialogTitle>{selectedFood?.name}</DialogTitle>
+            <DialogTitle className="text-foreground">{selectedFood?.name}</DialogTitle>
           </DialogHeader>
           
           {selectedFood && (
-            <div className="space-y-4">
-              {/* 단위 선택 */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">단위 선택</label>
-                <div className="flex gap-2">
-                  <Button
-                    variant={selectedUnit === 'serving' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedUnit('serving')}
-                    className="flex-1"
-                  >
-                    1인분
-                  </Button>
-                  <Button
-                    variant={selectedUnit === 'gram' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedUnit('gram')}
-                    className="flex-1"
-                  >
-                    그램(g)
-                  </Button>
-                </div>
+            <div className="space-y-6">
+              {/* Food Info */}
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground mb-2">
+                  100g 당 {selectedFood.kcalPer100g}kcal
+                </p>
               </div>
 
-              {/* 수량 선택 */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">수량</label>
+              {/* Gram Input */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-foreground">수량 (g)</label>
                 <div className="flex items-center gap-3">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    onClick={() => adjustGrams(-10)}
+                    disabled={gramsAmount <= 10}
                   >
                     <Minus size={16} />
                   </Button>
-                  <span className="w-16 text-center font-medium">
-                    {quantity}{selectedUnit === 'serving' ? '인분' : 'g'}
-                  </span>
+                  <div className="flex-1 text-center">
+                    <Input
+                      type="number"
+                      value={gramsAmount}
+                      onChange={(e) => setGramsAmount(Math.max(1, Math.min(2000, parseInt(e.target.value) || 1)))}
+                      className="text-center text-lg font-medium"
+                      min="1"
+                      max="2000"
+                    />
+                  </div>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setQuantity(quantity + 1)}
+                    onClick={() => adjustGrams(10)}
+                    disabled={gramsAmount >= 2000}
                   >
                     <Plus size={16} />
                   </Button>
                 </div>
-              </div>
-
-              {/* 영양 정보 */}
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <div className="text-center mb-2">
-                  <span className="text-2xl font-bold">{calculateKcal()}kcal</span>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setGramsAmount(50)}
+                    className="flex-1"
+                  >
+                    50g
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setGramsAmount(100)}
+                    className="flex-1"
+                  >
+                    100g
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setGramsAmount(200)}
+                    className="flex-1"
+                  >
+                    200g
+                  </Button>
                 </div>
-                {selectedFood.carbs && (
-                  <div className="text-xs text-gray-600 text-center">
-                    탄수화물 {Math.round((selectedFood.carbs * quantity) / (selectedUnit === 'serving' ? 1 : 100))}g • 
-                    단백질 {Math.round((selectedFood.protein! * quantity) / (selectedUnit === 'serving' ? 1 : 100))}g • 
-                    지방 {Math.round((selectedFood.fat! * quantity) / (selectedUnit === 'serving' ? 1 : 100))}g
-                  </div>
-                )}
               </div>
 
+              {/* Calorie Preview */}
+              <div className="bg-muted p-4 rounded-lg text-center">
+                <div className="text-2xl font-bold text-foreground mb-1">
+                  {calculateKcal()}kcal
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  예상 칼로리
+                </div>
+              </div>
+
+              {/* Add Button */}
               <Button 
-                className="w-full bg-blue-600 hover:bg-blue-700"
-                onClick={addToBasket}
+                className="w-full"
+                onClick={handleAdd}
+                disabled={gramsAmount < 1}
               >
-                담기
+                추가하기
               </Button>
             </div>
           )}
         </DialogContent>
       </Dialog>
-
-      {/* 바구니 여백 */}
-      {basket.length > 0 && <div className="h-40"></div>}
     </div>
   );
 };
