@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   User, 
   Settings, 
@@ -40,12 +41,14 @@ const memberInfoSchema = z.object({
   weight: z.string().min(1, '몸무게를 입력해주세요'),
   height: z.string().min(1, '키를 입력해주세요'),
   age: z.string().min(1, '나이를 입력해주세요'),
+  mainBadge: z.string().optional(),
 });
 
 type MemberInfoForm = z.infer<typeof memberInfoSchema>;
 
 const MyPage = () => {
   const [profileImage, setProfileImage] = useState<string>('/public/placeholder.svg');
+  const [selectedMainBadge, setSelectedMainBadge] = useState<number | null>(2); // 기본으로 '일주일 연속' 뱃지 선택
   const { toast } = useToast();
 
   const form = useForm<MemberInfoForm>({
@@ -56,11 +59,15 @@ const MyPage = () => {
       weight: '70',
       height: '175',
       age: '28',
+      mainBadge: '2', // 기본으로 '일주일 연속' 뱃지 선택
     },
   });
 
   const onSubmit = (data: MemberInfoForm) => {
     console.log('멤버 정보 수정:', data);
+    if (data.mainBadge) {
+      setSelectedMainBadge(parseInt(data.mainBadge));
+    }
     toast({
       title: "프로필이 수정되었습니다",
       description: "정보가 성공적으로 업데이트되었습니다.",
@@ -87,6 +94,12 @@ const MyPage = () => {
     { id: 5, name: '목표 달성', icon: Target, description: '첫 번째 목표 달성', earned: true, earnedDate: '2024-01-18' },
     { id: 6, name: '번개같이', icon: Zap, description: '빠른 기록 달성', earned: false },
   ];
+
+  // 보유한 뱃지만 필터링
+  const earnedBadges = badges.filter(badge => badge.earned);
+  
+  // 현재 선택된 메인 뱃지 정보
+  const mainBadge = selectedMainBadge ? badges.find(badge => badge.id === selectedMainBadge) : null;
 
   // 북마크 게시글 데이터
   const bookmarkedPosts = [
@@ -156,25 +169,47 @@ const MyPage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* 프로필 사진 */}
+                {/* 프로필 사진과 메인 뱃지 */}
                 <div className="flex flex-col items-center gap-4">
-                  <div className="relative">
-                    <Avatar className="w-24 h-24">
-                      <AvatarImage src={profileImage} alt="프로필 사진" />
-                      <AvatarFallback>김건강</AvatarFallback>
-                    </Avatar>
-                    <label htmlFor="profile-image" className="absolute bottom-0 right-0 p-1 bg-primary rounded-full cursor-pointer hover:bg-primary/80 transition-colors">
-                      <Camera size={16} className="text-primary-foreground" />
-                    </label>
-                    <input
-                      id="profile-image"
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleImageUpload}
-                    />
+                  <div className="flex flex-col sm:flex-row items-center gap-6">
+                    {/* 프로필 사진 */}
+                    <div className="relative">
+                      <Avatar className="w-24 h-24">
+                        <AvatarImage src={profileImage} alt="프로필 사진" />
+                        <AvatarFallback>김건강</AvatarFallback>
+                      </Avatar>
+                      <label htmlFor="profile-image" className="absolute bottom-0 right-0 p-1 bg-primary rounded-full cursor-pointer hover:bg-primary/80 transition-colors">
+                        <Camera size={16} className="text-primary-foreground" />
+                      </label>
+                      <input
+                        id="profile-image"
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleImageUpload}
+                      />
+                    </div>
+                    
+                    {/* 메인 뱃지 */}
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="text-sm font-medium text-foreground">메인 뱃지</div>
+                      {mainBadge ? (
+                        <div className="group relative">
+                          <div className="w-16 h-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center transition-transform hover:scale-110 hover:shadow-lg">
+                            <mainBadge.icon size={24} />
+                          </div>
+                          <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 text-xs text-muted-foreground whitespace-nowrap">
+                            {mainBadge.name}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 rounded-full bg-muted text-muted-foreground flex items-center justify-center">
+                          <Award size={24} />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">프로필 사진을 변경하려면 클릭하세요</p>
+                  <p className="text-sm text-muted-foreground text-center">프로필 사진을 변경하려면 클릭하세요</p>
                 </div>
 
                 {/* 정보 입력 폼 */}
@@ -291,6 +326,45 @@ const MyPage = () => {
                         )}
                       />
                     </div>
+
+                    {/* 메인 뱃지 선택 */}
+                    <FormField
+                      control={form.control}
+                      name="mainBadge"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>메인 뱃지 선택</FormLabel>
+                          <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
+                            <div className="flex-1">
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="메인으로 표시할 뱃지를 선택하세요" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent className="bg-background border border-border shadow-lg z-50">
+                                  <SelectItem value="">뱃지 없음</SelectItem>
+                                  {earnedBadges.map((badge) => {
+                                    const IconComponent = badge.icon;
+                                    return (
+                                      <SelectItem key={badge.id} value={badge.id.toString()}>
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                                            <IconComponent size={12} />
+                                          </div>
+                                          <span>{badge.name}</span>
+                                        </div>
+                                      </SelectItem>
+                                    );
+                                  })}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
                     <Button type="submit" className="w-full">
                       정보 수정하기
