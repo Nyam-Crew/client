@@ -32,6 +32,7 @@ const MealRecord = () => {
   const [expandedMeal, setExpandedMeal] = useState<string | null>(null);
   const [waterDialogOpen, setWaterDialogOpen] = useState(false);
   const [waterAmount, setWaterAmount] = useState(1200);
+  const [weight, setWeight] = useState(65.5);
 
   const handleMealClick = (mealId: string) => {
     navigate(`/meal/${mealId}`);
@@ -188,135 +189,186 @@ const MealRecord = () => {
 
       {/* 탭 */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div style={{ backgroundColor: '#fef1c1' }} className="px-4">
+        <div className="bg-brand-cream px-4">
           <TabsList className="w-full bg-transparent border-none">
             <TabsTrigger 
               value="myDay" 
-              className="flex-1 text-gray-800 bg-transparent data-[state=active]:bg-gray-800 data-[state=active]:text-white rounded-lg"
+              className="flex-1 text-foreground bg-transparent data-[state=active]:bg-foreground data-[state=active]:text-background rounded-lg transition-all duration-200"
             >
               나의 하루
             </TabsTrigger>
             <TabsTrigger 
               value="whatIAte" 
-              className="flex-1 text-gray-800 bg-transparent data-[state=active]:bg-gray-800 data-[state=active]:text-white rounded-lg"
+              className="flex-1 text-foreground bg-transparent data-[state=active]:bg-foreground data-[state=active]:text-background rounded-lg transition-all duration-200"
             >
               먹었어요
             </TabsTrigger>
           </TabsList>
         </div>
 
-        {/* 나의 하루 탭 */}
-        <TabsContent value="myDay" className="px-6 pt-8 pb-8 bg-gradient-to-b from-background to-accent/20 min-h-screen">
+        {/* 나의 하루 탭 - 개선된 카드 레이아웃 */}
+        <TabsContent value="myDay" className="px-4 pt-6 pb-8 bg-gradient-to-b from-background to-accent/20 min-h-screen">
           
-          {/* 1. 상단: 섭취/목표 칼로리 */}
-          <div className="text-center mb-8">
-            <div className="text-foreground">
-              <span className="text-5xl font-bold">{todayStats.calories.current}</span>
-              <span className="text-2xl text-muted-foreground">/{todayStats.calories.target}kcal</span>
-            </div>
-          </div>
+          {/* 칼로리 섭취 카드 */}
+          <Card className="mb-6 shadow-lg border-0 bg-white/90 backdrop-blur-sm">
+            <CardContent className="p-8 text-center">
+              <div className="text-foreground mb-4">
+                <span className="text-4xl md:text-5xl font-bold text-primary">{todayStats.calories.current}</span>
+                <span className="text-xl md:text-2xl text-muted-foreground">/{todayStats.calories.target}kcal</span>
+              </div>
+              <div className="text-sm text-muted-foreground">오늘 섭취한 칼로리</div>
+            </CardContent>
+          </Card>
           
-          {/* 2. 바로 아래: 탄/단/지 비율 컬러 동그라미 */}
-          <div className="flex justify-center gap-8 mb-12">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-red-400 rounded-full" aria-hidden="true"></div>
-              <span className="text-foreground font-medium">탄 {todayStats.carbs.percentage}%</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-yellow-400 rounded-full" aria-hidden="true"></div>
-              <span className="text-foreground font-medium">단 {todayStats.protein.percentage}%</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-blue-600 rounded-full" aria-hidden="true"></div>
-              <span className="text-foreground font-medium">지 {todayStats.fat.percentage}%</span>
-            </div>
-          </div>
+          {/* 영양소 비율 카드 */}
+          <Card className="mb-6 shadow-lg border-0 bg-white/90 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-4 text-center">영양소 비율</h3>
+              <div className="flex justify-center gap-4 md:gap-8 mb-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-gradient-to-r from-red-400 to-red-500 rounded-full shadow-sm"></div>
+                  <span className="text-foreground font-medium text-sm md:text-base">탄 {todayStats.carbs.percentage}%</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full shadow-sm"></div>
+                  <span className="text-foreground font-medium text-sm md:text-base">단 {todayStats.protein.percentage}%</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full shadow-sm"></div>
+                  <span className="text-foreground font-medium text-sm md:text-base">지 {todayStats.fat.percentage}%</span>
+                </div>
+              </div>
+              
+              {/* 영양소별 Progress Bar */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <label className="text-sm font-medium text-foreground">탄수화물</label>
+                    <span className="text-sm font-bold text-foreground">
+                      {todayStats.carbs.current}/{todayStats.carbs.target}g
+                    </span>
+                  </div>
+                  <Progress 
+                    value={todayStats.carbs.percentage} 
+                    className="w-full h-3"
+                    aria-label={`탄수화물 섭취량: ${todayStats.carbs.current}g / ${todayStats.carbs.target}g`}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <label className="text-sm font-medium text-foreground">단백질</label>
+                    <span className="text-sm font-bold text-foreground">
+                      {todayStats.protein.current}/{todayStats.protein.target}g
+                    </span>
+                  </div>
+                  <Progress 
+                    value={todayStats.protein.percentage} 
+                    className="w-full h-3"
+                    aria-label={`단백질 섭취량: ${todayStats.protein.current}g / ${todayStats.protein.target}g`}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <label className="text-sm font-medium text-foreground">지방</label>
+                    <span className="text-sm font-bold text-foreground">
+                      {todayStats.fat.current}/{todayStats.fat.target}g
+                    </span>
+                  </div>
+                  <Progress 
+                    value={todayStats.fat.percentage} 
+                    className="w-full h-3"
+                    aria-label={`지방 섭취량: ${todayStats.fat.current}g / ${todayStats.fat.target}g`}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* 3. 중앙: 귀여운 일러스트 + 컬러 아치 */}
-          <div className="relative mb-12 flex justify-center">
-            {/* 상단 아치 */}
-            <div className="absolute -top-8 left-1/2 transform -translate-x-1/2">
-              <div className="w-32 h-16 rounded-t-full bg-gradient-to-r from-brand-green/30 via-brand-cream/50 to-brand-green/30"></div>
+          {/* 귀여운 일러스트 카드 */}
+          <Card className="mb-6 shadow-lg border-0 overflow-hidden">
+            <div className="relative bg-gradient-to-br from-brand-cream via-brand-light to-brand-green/20 p-8">
+              {/* 상단 아치 */}
+              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                <div className="w-24 h-12 rounded-t-full bg-gradient-to-r from-brand-green/30 via-brand-cream/50 to-brand-green/30"></div>
+              </div>
+              
+              {/* 일러스트 */}
+              <div className="relative z-10 flex justify-center">
+                <div className="p-4 bg-white/80 rounded-full shadow-lg">
+                  <img 
+                    src="/cute-food-illustration.png" 
+                    alt="귀여운 건강식품 캐릭터들" 
+                    className="w-20 h-20 md:w-24 md:h-24 object-contain"
+                  />
+                </div>
+              </div>
+              
+              {/* 하단 아치 */}
+              <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2">
+                <div className="w-32 h-16 rounded-b-full bg-gradient-to-r from-brand-cream/40 via-brand-green/60 to-brand-cream/40"></div>
+              </div>
             </div>
-            
-            {/* 일러스트 */}
-            <div className="relative z-10 p-4 bg-white/80 rounded-full shadow-lg">
-              <img 
-                src="/cute-food-illustration.png" 
-                alt="귀여운 건강식품 캐릭터들" 
-                className="w-24 h-24 object-contain"
-              />
-            </div>
-            
-            {/* 하단 아치 */}
-            <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2">
-              <div className="w-40 h-20 rounded-b-full bg-gradient-to-r from-brand-cream/40 via-brand-green/60 to-brand-cream/40"></div>
-            </div>
-          </div>
+          </Card>
 
-          {/* 4. 하단: 소모/남은 칼로리 */}
-          <div className="text-center mb-8">
-            <div className="flex justify-center items-center gap-6 text-sm">
-              <span className="flex items-center gap-2 text-foreground">
-                <span role="img" aria-label="불꽃">🔥</span>
-                <span>{todayStats.calories.target - todayStats.calories.current}kcal 소모</span>
-              </span>
-              <span className="text-success font-medium">
-                {todayStats.calories.target - todayStats.calories.current}kcal 더 먹을 수 있어요
-              </span>
-            </div>
-          </div>
-
-          {/* 5. 영양소별 Progress Bar */}
-          <div className="space-y-6" role="region" aria-label="영양소 섭취 현황">
-            
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-medium text-foreground">탄수화물</label>
-                <span className="text-sm font-bold text-foreground">
-                  {todayStats.carbs.current}/{todayStats.carbs.target}g
+          {/* 칼로리 상태 카드 */}
+          <Card className="shadow-lg border-0 bg-gradient-to-r from-success/10 to-primary/10">
+            <CardContent className="p-6 text-center">
+              <div className="flex flex-col md:flex-row justify-center items-center gap-4 md:gap-8 text-sm">
+                <span className="flex items-center gap-2 text-foreground">
+                  <span role="img" aria-label="불꽃" className="text-lg">🔥</span>
+                  <span className="font-medium">{todayStats.calories.target - todayStats.calories.current}kcal 소모 필요</span>
+                </span>
+                <div className="hidden md:block w-px h-6 bg-border"></div>
+                <span className="text-success font-semibold">
+                  {todayStats.calories.target - todayStats.calories.current}kcal 더 먹을 수 있어요!
                 </span>
               </div>
-              <Progress 
-                value={todayStats.carbs.percentage} 
-                className="w-full h-3"
-                aria-label={`탄수화물 섭취량: ${todayStats.carbs.current}g / ${todayStats.carbs.target}g`}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-medium text-foreground">단백질</label>
-                <span className="text-sm font-bold text-foreground">
-                  {todayStats.protein.current}/{todayStats.protein.target}g
-                </span>
-              </div>
-              <Progress 
-                value={todayStats.protein.percentage} 
-                className="w-full h-3"
-                aria-label={`단백질 섭취량: ${todayStats.protein.current}g / ${todayStats.protein.target}g`}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-medium text-foreground">지방</label>
-                <span className="text-sm font-bold text-foreground">
-                  {todayStats.fat.current}/{todayStats.fat.target}g
-                </span>
-              </div>
-              <Progress 
-                value={todayStats.fat.percentage} 
-                className="w-full h-3"
-                aria-label={`지방 섭취량: ${todayStats.fat.current}g / ${todayStats.fat.target}g`}
-              />
-            </div>
-            
-          </div>
+            </CardContent>
+          </Card>
+          
         </TabsContent>
 
         {/* 먹었어요 탭 */}
-        <TabsContent value="whatIAte" className="px-4 pt-6 pb-20 space-y-6 bg-white">
+        <TabsContent value="whatIAte" className="px-4 pt-6 pb-8 space-y-6 bg-white">
+          
+          {/* 체중 입력 카드 */}
+          <Card className="shadow-sm border border-border/50 bg-gradient-to-r from-primary/5 to-secondary/10">
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h3 className="text-base font-semibold text-foreground mb-1">오늘의 체중</h3>
+                  <p className="text-sm text-muted-foreground">매일 체중을 기록해보세요</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      value={weight}
+                      onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
+                      className="w-20 text-center text-lg font-semibold border-primary/20 focus:border-primary"
+                      step="0.1"
+                      min="0"
+                      max="200"
+                    />
+                    <span className="text-sm font-medium text-foreground">kg</span>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground px-4"
+                    onClick={() => {
+                      // TODO: Save weight to API
+                      console.log('Weight saved:', weight);
+                    }}
+                  >
+                    저장
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* 식사별 카드 - 2x2 그리드 */}
           <div className="grid grid-cols-2 gap-4">
             {mealCards.map((meal) => (
@@ -340,7 +392,7 @@ const MealRecord = () => {
           {/* 물 섭취 카드 (전체 폭) */}
           <div className="w-full">
             <Card 
-              className="border-none cursor-pointer transform hover:scale-105 transition-all duration-200 shadow-lg" 
+              className="border-none cursor-pointer transform hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl" 
               style={{ backgroundColor: '#c2d595' }}
               onClick={() => handleWaterClick()}
             >
@@ -349,7 +401,7 @@ const MealRecord = () => {
                   <div className="text-blue-600">
                     <Droplets size={32} />
                   </div>
-                  <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                  <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center shadow-sm">
                     <Check size={16} className="text-white" />
                   </div>
                 </div>
@@ -362,16 +414,6 @@ const MealRecord = () => {
 
         </TabsContent>
       </Tabs>
-
-      {/* 페이지 최하단 고정 버튼 */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4">
-        <Button 
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 text-lg font-medium"
-          onClick={() => handleAddFood('lunch')}
-        >
-          음식 추가
-        </Button>
-      </div>
 
       {/* 식사 등록 팝업 */}
       <Dialog open={mealDialogOpen} onOpenChange={setMealDialogOpen}>
