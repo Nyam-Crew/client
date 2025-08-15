@@ -590,42 +590,52 @@ const MyPage = () => {
                       
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">이메일</Label>
-                        <p className="mt-1 text-foreground">{form.getValues('email')}</p>
+                        <div className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
+                          {form.getValues('email')}
+                        </div>
                       </div>
                       
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">성별</Label>
-                        <p className="mt-1 text-foreground">
+                        <div className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
                           {form.getValues('gender') === 'male' ? '남성' : 
                            form.getValues('gender') === 'female' ? '여성' : '선택안함'}
-                        </p>
+                        </div>
                       </div>
                       
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">나이</Label>
-                        <p className="mt-1 text-foreground">{form.getValues('age')}세</p>
+                        <div className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
+                          {form.getValues('age')}세
+                        </div>
                       </div>
                       
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">활동레벨</Label>
-                        <p className="mt-1 text-foreground">
+                        <div className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
                           {activityLevelMap[form.getValues('activityLevel') as keyof typeof activityLevelMap]}
-                        </p>
+                        </div>
                       </div>
                       
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">키</Label>
-                        <p className="mt-1 text-foreground">{form.getValues('height')}cm</p>
+                        <div className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
+                          {form.getValues('height')}cm
+                        </div>
                       </div>
                       
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">현재 몸무게</Label>
-                        <p className="mt-1 text-foreground">{form.getValues('weight')}kg</p>
+                        <div className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
+                          {form.getValues('weight')}kg
+                        </div>
                       </div>
                       
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">목표 몸무게</Label>
-                        <p className="mt-1 text-foreground">{form.getValues('targetWeight')}kg</p>
+                        <div className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
+                          {form.getValues('targetWeight')}kg
+                        </div>
                       </div>
                     </div>
 
