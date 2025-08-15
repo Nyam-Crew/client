@@ -365,6 +365,16 @@ const MyPage = () => {
                       onChange={handleImageUpload}
                     />
                   </div>
+                  
+                  {/* 닉네임을 프로필 사진 바로 아래 중앙에 표시 */}
+                  {!isEditMode && (
+                    <div className="text-center">
+                      <h2 className="text-xl font-semibold text-foreground">
+                        {form.getValues('nickname')}
+                      </h2>
+                    </div>
+                  )}
+                  
                   {isEditMode && <p className="text-sm text-muted-foreground">프로필 사진을 변경하려면 클릭하세요</p>}
                 </div>
 
@@ -583,10 +593,6 @@ const MyPage = () => {
                   /* 조회 모드 */
                   <div className="space-y-4">
                     <div className="space-y-4">
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">닉네임</Label>
-                        <p className="mt-1 text-foreground">{form.getValues('nickname')}</p>
-                      </div>
                       
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">이메일</Label>
