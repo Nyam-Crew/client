@@ -160,8 +160,8 @@ const MyPage = () => {
     { id: 12, name: '마라톤', icon: Zap, description: '장기간 목표 달성', earned: false },
   ];
 
-  // 뱃지 페이징
-  const badgesPerPage = 9;
+  // 뱃지 페이징 (한 페이지에 6개, 한 줄에 2개)
+  const badgesPerPage = 6;
   const totalBadgePages = Math.ceil(badges.length / badgesPerPage);
   const startBadgeIndex = (currentBadgePage - 1) * badgesPerPage;
   const currentBadges = badges.slice(startBadgeIndex, startBadgeIndex + badgesPerPage);
@@ -582,18 +582,17 @@ const MyPage = () => {
                 ) : (
                   /* 조회 모드 */
                   <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-4">
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">닉네임</Label>
                         <p className="mt-1 text-foreground">{form.getValues('nickname')}</p>
                       </div>
+                      
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">이메일</Label>
                         <p className="mt-1 text-foreground">{form.getValues('email')}</p>
                       </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">성별</Label>
                         <p className="mt-1 text-foreground">
@@ -601,27 +600,29 @@ const MyPage = () => {
                            form.getValues('gender') === 'female' ? '여성' : '선택안함'}
                         </p>
                       </div>
+                      
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">나이</Label>
                         <p className="mt-1 text-foreground">{form.getValues('age')}세</p>
                       </div>
+                      
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">활동레벨</Label>
                         <p className="mt-1 text-foreground">
                           {activityLevelMap[form.getValues('activityLevel') as keyof typeof activityLevelMap]}
                         </p>
                       </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">키</Label>
                         <p className="mt-1 text-foreground">{form.getValues('height')}cm</p>
                       </div>
+                      
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">현재 몸무게</Label>
                         <p className="mt-1 text-foreground">{form.getValues('weight')}kg</p>
                       </div>
+                      
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">목표 몸무게</Label>
                         <p className="mt-1 text-foreground">{form.getValues('targetWeight')}kg</p>
@@ -653,7 +654,7 @@ const MyPage = () => {
                 </p>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {currentBadges.map((badge) => {
                     const IconComponent = badge.icon;
                     return (
