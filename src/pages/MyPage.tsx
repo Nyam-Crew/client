@@ -57,11 +57,11 @@ type MemberInfoForm = z.infer<typeof memberInfoSchema>;
 
 // 활동레벨 매핑
 const activityLevelMap = {
-  SEDENTARY: '비활동적',
-  LIGHT: '가벼운 활동',
-  MODERATE: '보통 활동',
-  ACTIVE: '활발한 활동',
-  VERY_ACTIVE: '매우 활발한 활동'
+  SEDENTARY: '비활동적 (주로 앉아서 생활)',
+  LIGHT: '가벼운 활동 (주 1~2회 가벼운 운동)',
+  MODERATE: '보통 활동 (주 3~5회 보통 강도 운동)',
+  ACTIVE: '활발한 활동 (주 6~7회 규칙적인 운동)',
+  VERY_ACTIVE: '매우 활발한 활동 (매일 고강도 운동 또는 육체노동)'
 };
 
 const MyPage = () => {
@@ -457,14 +457,14 @@ const MyPage = () => {
                                 </div>
                                 <div className="flex items-center space-x-2">
                                   <RadioGroupItem value="none" id="none" />
-                                  <Label htmlFor="none">선택안함</Label>
+                                  <Label htmlFor="none">없음</Label>
                                 </div>
-                              </RadioGroup>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                               </RadioGroup>
+                             </FormControl>
+                             <FormMessage />
+                           </FormItem>
+                         )}
+                       />
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
@@ -605,7 +605,7 @@ const MyPage = () => {
                         <Label className="text-sm font-medium text-muted-foreground">성별</Label>
                         <div className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
                           {form.getValues('gender') === 'male' ? '남성' : 
-                           form.getValues('gender') === 'female' ? '여성' : '선택안함'}
+                           form.getValues('gender') === 'female' ? '여성' : '없음'}
                         </div>
                       </div>
                       
