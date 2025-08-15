@@ -466,81 +466,77 @@ const MyPage = () => {
                          )}
                        />
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="height"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>키 (cm)</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  placeholder="175" 
-                                  {...field} 
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                      <FormField
+                        control={form.control}
+                        name="height"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>키 (cm)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                placeholder="175" 
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                        <FormField
-                          control={form.control}
-                          name="weight"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>몸무게 (kg)</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  placeholder="70" 
-                                  {...field} 
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
+                      <FormField
+                        control={form.control}
+                        name="weight"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>몸무게 (kg)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                placeholder="70" 
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="age"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>나이</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  placeholder="28" 
-                                  {...field} 
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                      <FormField
+                        control={form.control}
+                        name="age"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>나이</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                placeholder="28" 
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
-                        <FormField
-                          control={form.control}
-                          name="targetWeight"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>목표체중 (kg)</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  placeholder="65" 
-                                  {...field} 
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
+                      <FormField
+                        control={form.control}
+                        name="targetWeight"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>목표체중 (kg)</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                placeholder="65" 
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
                       <FormField
                         control={form.control}
@@ -550,11 +546,11 @@ const MyPage = () => {
                             <FormLabel>활동레벨</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className="bg-background">
                                   <SelectValue placeholder="활동레벨을 선택하세요" />
                                 </SelectTrigger>
                               </FormControl>
-                              <SelectContent>
+                              <SelectContent className="bg-background border-border z-50">
                                 {Object.entries(activityLevelMap).map(([key, value]) => (
                                   <SelectItem key={key} value={key}>
                                     {value}
@@ -601,13 +597,29 @@ const MyPage = () => {
                         </div>
                       </div>
                       
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">성별</Label>
-                        <div className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
-                          {form.getValues('gender') === 'male' ? '남성' : 
-                           form.getValues('gender') === 'female' ? '여성' : '없음'}
-                        </div>
-                      </div>
+                       <div>
+                         <Label className="text-sm font-medium text-muted-foreground">성별</Label>
+                         <div className="mt-2">
+                           <RadioGroup
+                             value={form.getValues('gender')}
+                             disabled
+                             className="flex gap-6"
+                           >
+                             <div className="flex items-center space-x-2">
+                               <RadioGroupItem value="male" id="male-read" disabled />
+                               <Label htmlFor="male-read" className="text-muted-foreground">남성</Label>
+                             </div>
+                             <div className="flex items-center space-x-2">
+                               <RadioGroupItem value="female" id="female-read" disabled />
+                               <Label htmlFor="female-read" className="text-muted-foreground">여성</Label>
+                             </div>
+                             <div className="flex items-center space-x-2">
+                               <RadioGroupItem value="none" id="none-read" disabled />
+                               <Label htmlFor="none-read" className="text-muted-foreground">없음</Label>
+                             </div>
+                           </RadioGroup>
+                         </div>
+                       </div>
                       
                       <div>
                         <Label className="text-sm font-medium text-muted-foreground">나이</Label>
