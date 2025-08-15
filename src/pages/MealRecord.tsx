@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import MealCard from '@/components/meal/MealCard';
 import WaterIntakeDialog from '@/components/water/WaterIntakeDialog';
+import CalendarViewDialog from '@/components/meal/CalendarViewDialog';
 import { 
   Plus, 
   Check,
@@ -17,7 +19,10 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  Utensils
+  Utensils,
+  Calendar,
+  Target,
+  CheckCircle
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -27,12 +32,21 @@ const MealRecord = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('myDay');
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedMonth, setSelectedMonth] = useState((new Date().getMonth() + 1).toString());
   const [selectedMeal, setSelectedMeal] = useState<string | null>(null);
   const [mealDialogOpen, setMealDialogOpen] = useState(false);
+  const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
   const [expandedMeal, setExpandedMeal] = useState<string | null>(null);
   const [waterDialogOpen, setWaterDialogOpen] = useState(false);
   const [waterAmount, setWaterAmount] = useState(1200);
   const [weight, setWeight] = useState(65.5);
+  const [dailyMissions, setDailyMissions] = useState([
+    { id: 1, title: '물 1L 마시기', completed: true },
+    { id: 2, title: '식단 3끼 기록하기', completed: false },
+    { id: 3, title: '오천보 이상 걷기', completed: false },
+    { id: 4, title: '계단으로 올라가기', completed: true },
+    { id: 5, title: '한 정거장 먼저 내리기', completed: false },
+  ]);
 
   const handleMealClick = (mealId: string) => {
     navigate(`/meal/${mealId}`);
@@ -68,6 +82,22 @@ const MealRecord = () => {
     setWaterAmount(amount);
     // TODO: Save to API
     console.log('Water amount saved:', amount);
+  };
+
+  const handleMissionToggle = (missionId: number) => {
+    setDailyMissions(prev => 
+      prev.map(mission => 
+        mission.id === missionId 
+          ? { ...mission, completed: !mission.completed }
+          : mission
+      )
+    );
+  };
+
+  const handleSkipMeal = (mealType: string) => {
+    console.log('Skipped meal:', mealType);
+    setMealDialogOpen(false);
+    // TODO: Save skip status to API
   };
 
   const handleMealCardClick = (mealId: string, status: string) => {
@@ -156,8 +186,32 @@ const MealRecord = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* 상단 날짜 선택 바 */}
-      <div className="bg-white px-4 py-3">
+      {/* 상단 월 선택 및 캘린더 바 */}
+      <div className="bg-white px-4 py-3 border-b">
+        <div className="flex items-center justify-between mb-3">
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 12 }, (_, i) => (
+                <SelectItem key={i + 1} value={(i + 1).toString()}>
+                  {i + 1}월
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setCalendarDialogOpen(true)}
+            className="p-2"
+          >
+            <Calendar size={24} className="text-gray-600" />
+          </Button>
+        </div>
+        
+        {/* 날짜 선택 바 */}
         <div className="flex items-center justify-between">
           <ChevronLeft size={24} className="text-gray-600" />
           <div className="flex gap-1 overflow-x-auto">
@@ -202,6 +256,12 @@ const MealRecord = () => {
               className="flex-1 text-foreground bg-transparent data-[state=active]:bg-foreground data-[state=active]:text-background rounded-lg transition-all duration-200"
             >
               먹었어요
+            </TabsTrigger>
+            <TabsTrigger 
+              value="dailyMissions" 
+              className="flex-1 text-foreground bg-transparent data-[state=active]:bg-foreground data-[state=active]:text-background rounded-lg transition-all duration-200"
+            >
+              데일리 미션
             </TabsTrigger>
           </TabsList>
         </div>
@@ -413,6 +473,68 @@ const MealRecord = () => {
           </div>
 
         </TabsContent>
+
+        {/* 데일리 미션 탭 */}
+        <TabsContent value="dailyMissions" className="px-4 pt-6 pb-8 space-y-4 bg-white">
+          <div className="text-center mb-6">
+            <h2 className="text-xl font-bold text-foreground mb-2">오늘의 미션</h2>
+            <p className="text-sm text-muted-foreground">
+              완료한 미션: {dailyMissions.filter(m => m.completed).length} / {dailyMissions.length}
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {dailyMissions.map((mission) => (
+              <Card key={mission.id} className="border border-border/50">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                        mission.completed 
+                          ? 'bg-green-500 text-white' 
+                          : 'border-2 border-gray-300'
+                      }`}>
+                        {mission.completed && <Check size={16} />}
+                      </div>
+                      <span className={`font-medium ${
+                        mission.completed 
+                          ? 'text-green-600 line-through' 
+                          : 'text-foreground'
+                      }`}>
+                        {mission.title}
+                      </span>
+                    </div>
+                    <Button
+                      variant={mission.completed ? "outline" : "default"}
+                      size="sm"
+                      onClick={() => handleMissionToggle(mission.id)}
+                      className={mission.completed ? "text-green-600 border-green-200" : ""}
+                    >
+                      {mission.completed ? '완료됨' : '완료'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* 미션 완료 현황 */}
+          <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
+            <CardContent className="p-6 text-center">
+              <Target className="mx-auto mb-3 text-green-600" size={32} />
+              <h3 className="font-semibold text-lg mb-2">
+                {dailyMissions.filter(m => m.completed).length === dailyMissions.length 
+                  ? '🎉 모든 미션 완료!' 
+                  : '오늘도 화이팅!'}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {dailyMissions.filter(m => m.completed).length === dailyMissions.length
+                  ? '모든 미션을 완료했습니다. 정말 대단해요!'
+                  : `${dailyMissions.length - dailyMissions.filter(m => m.completed).length}개의 미션이 남았어요.`}
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* 식사 등록 팝업 */}
@@ -505,16 +627,25 @@ const MealRecord = () => {
               </div>
             </div>
 
-            {/* 음식 추가 버튼 */}
-            <Button 
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
-              onClick={() => {
-                setMealDialogOpen(false);
-                handleAddFoodClick();
-              }}
-            >
-              음식 추가
-            </Button>
+            {/* 음식 추가 및 안먹었어요 버튼 */}
+            <div className="flex gap-2">
+              <Button 
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3"
+                onClick={() => {
+                  setMealDialogOpen(false);
+                  handleAddFoodClick();
+                }}
+              >
+                음식 추가
+              </Button>
+              <Button 
+                variant="outline"
+                className="flex-1 py-3"
+                onClick={() => handleSkipMeal(selectedMeal || '')}
+              >
+                안먹었어요
+              </Button>
+            </div>
 
             {/* 수정 완료 버튼 */}
             <Button 
@@ -536,6 +667,12 @@ const MealRecord = () => {
         onOpenChange={setWaterDialogOpen}
         currentAmount={waterAmount}
         onSave={handleWaterSave}
+      />
+
+      {/* 캘린더 뷰 다이얼로그 */}
+      <CalendarViewDialog
+        open={calendarDialogOpen}
+        onOpenChange={setCalendarDialogOpen}
       />
     </div>
   );

@@ -111,16 +111,16 @@ const WaterIntakeDialog = ({ open, onOpenChange, currentAmount, onSave }: WaterI
           <div className="bg-blue-50 rounded-lg p-4">
             <div className="flex justify-between items-center mb-2">
               <span className="text-sm font-medium text-blue-800">일일 목표</span>
-              <span className="text-sm text-blue-600">2000ml</span>
+              <span className="text-sm text-blue-600">1000ml</span>
             </div>
             <div className="w-full bg-blue-200 rounded-full h-2">
               <div 
                 className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${Math.min(100, (amount / 2000) * 100)}%` }}
+                style={{ width: `${Math.min(100, (amount / 1000) * 100)}%` }}
               ></div>
             </div>
             <div className="text-xs text-blue-600 mt-1">
-              {amount >= 2000 ? '목표 달성! 🎉' : `${2000 - amount}ml 더 마시면 목표 달성!`}
+              {amount >= 1000 ? '목표 달성! 🎉' : `${1000 - amount}ml 더 마시면 목표 달성!`}
             </div>
           </div>
         </div>

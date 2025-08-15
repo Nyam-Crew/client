@@ -19,7 +19,7 @@ const Navigation = () => {
 
   const navItems = [
     { icon: Home, label: '홈', path: '/' },
-    { icon: PlusCircle, label: '식단기록', path: '/meal' },
+    { icon: PlusCircle, label: '식단', path: '/meal' },
     { icon: Trophy, label: '챌린지', path: '/challenge' },
     { icon: Users, label: '커뮤니티', path: '/community' },
     { icon: MessageCircle, label: '채팅', path: '/chat' },
