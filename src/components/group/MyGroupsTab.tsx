@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Crown, Shield, Calendar } from 'lucide-react';
+import { Users, Crown, Shield, Calendar, Clock, X } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,6 +17,18 @@ interface MyGroup {
   role: 'member' | 'sub_leader' | 'leader';
   joinedAt: string;
   lastActivity: string;
+}
+
+interface AppliedGroup {
+  id: string;
+  name: string;
+  description: string;
+  image?: string;
+  currentMembers: number;
+  maxMembers: number;
+  leader: string;
+  status: 'pending' | 'rejected';
+  appliedAt: string;
 }
 
 const mockMyGroups: MyGroup[] = [
@@ -45,15 +57,40 @@ const mockMyGroups: MyGroup[] = [
   }
 ];
 
+const mockAppliedGroups: AppliedGroup[] = [
+  {
+    id: '3',
+    name: '수영 동호회',
+    description: '주 3회 수영 모임입니다.',
+    currentMembers: 8,
+    maxMembers: 15,
+    leader: '김수영',
+    status: 'pending',
+    appliedAt: '2024-01-18'
+  },
+  {
+    id: '4',
+    name: '등산 클럽',
+    description: '주말 등산 모임',
+    currentMembers: 12,
+    maxMembers: 12,
+    leader: '박등산',
+    status: 'rejected',
+    appliedAt: '2024-01-10'
+  }
+];
+
 const MyGroupsTab = () => {
   const navigate = useNavigate();
   const [myGroups, setMyGroups] = useState<MyGroup[]>([]);
+  const [appliedGroups, setAppliedGroups] = useState<AppliedGroup[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // 목업 데이터 로딩 시뮬레이션
     setTimeout(() => {
       setMyGroups(mockMyGroups);
+      setAppliedGroups(mockAppliedGroups);
       setLoading(false);
     }, 800);
   }, []);
@@ -66,6 +103,15 @@ const MyGroupsTab = () => {
         return <Badge variant="secondary"><Shield className="w-3 h-3 mr-1" />부리더</Badge>;
       case 'member':
         return <Badge variant="outline">멤버</Badge>;
+    }
+  };
+
+  const getStatusBadge = (status: AppliedGroup['status']) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800"><Clock className="w-3 h-3 mr-1" />대기 중</Badge>;
+      case 'rejected':
+        return <Badge variant="destructive"><X className="w-3 h-3 mr-1" />거절됨</Badge>;
     }
   };
 
@@ -105,7 +151,7 @@ const MyGroupsTab = () => {
     );
   }
 
-  if (myGroups.length === 0) {
+  if (myGroups.length === 0 && appliedGroups.length === 0) {
     return (
       <div className="text-center py-12">
         <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
@@ -116,72 +162,144 @@ const MyGroupsTab = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">내 그룹</h2>
-          <p className="text-sm text-muted-foreground">총 {myGroups.length}개 그룹에 참가 중</p>
-        </div>
-      </div>
+    <div className="space-y-8">
+      {/* 가입된 그룹 섹션 */}
+      {myGroups.length > 0 && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold">가입된 그룹</h2>
+              <p className="text-sm text-muted-foreground">총 {myGroups.length}개 그룹에 참가 중</p>
+            </div>
+          </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {myGroups.map((group) => (
-          <Card 
-            key={group.id}
-            className="cursor-pointer hover:shadow-lg transition-shadow"
-            onClick={() => handleGroupClick(group.id)}
-          >
-            <CardHeader>
-              {group.image ? (
-                <div className="aspect-video w-full mb-3 rounded-lg overflow-hidden">
-                  <img 
-                    src={group.image} 
-                    alt={`${group.name} 그룹 이미지`}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              ) : (
-                <div className="aspect-video w-full mb-3 rounded-lg bg-muted flex items-center justify-center">
-                  <Users className="h-8 w-8 text-muted-foreground" />
-                </div>
-              )}
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-lg">{group.name}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">{group.description}</p>
-                </div>
-                {getRoleBadge(group.role)}
-              </div>
-            </CardHeader>
-            
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Users className="h-4 w-4" />
-                    <span>{group.currentMembers}/{group.maxMembers}명</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {myGroups.map((group) => (
+              <Card 
+                key={group.id}
+                className="cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => handleGroupClick(group.id)}
+              >
+                <CardHeader>
+                  {group.image ? (
+                    <div className="aspect-video w-full mb-3 rounded-lg overflow-hidden">
+                      <img 
+                        src={group.image} 
+                        alt={`${group.name} 그룹 이미지`}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="aspect-video w-full mb-3 rounded-lg bg-muted flex items-center justify-center">
+                      <Users className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-lg">{group.name}</h3>
+                      <p className="text-sm text-muted-foreground mt-1">{group.description}</p>
+                    </div>
+                    {getRoleBadge(group.role)}
                   </div>
-                  <div className="flex items-center gap-1">
-                    <Crown className="h-4 w-4" />
-                    <span>{group.leader}</span>
-                  </div>
-                </div>
+                </CardHeader>
                 
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    <span>참가일: {formatDate(group.joinedAt)}</span>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Users className="h-4 w-4" />
+                        <span>{group.currentMembers}/{group.maxMembers}명</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Crown className="h-4 w-4" />
+                        <span>{group.leader}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4" />
+                        <span>참가일: {formatDate(group.joinedAt)}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="text-xs text-muted-foreground">
+                      마지막 활동: {formatDate(group.lastActivity)}
+                    </div>
                   </div>
-                </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 신청한 그룹 섹션 */}
+      {appliedGroups.length > 0 && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-semibold">신청한 그룹</h2>
+              <p className="text-sm text-muted-foreground">총 {appliedGroups.length}개 그룹에 신청</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {appliedGroups.map((group) => (
+              <Card 
+                key={group.id}
+                className="cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => handleGroupClick(group.id)}
+              >
+                <CardHeader>
+                  {group.image ? (
+                    <div className="aspect-video w-full mb-3 rounded-lg overflow-hidden">
+                      <img 
+                        src={group.image} 
+                        alt={`${group.name} 그룹 이미지`}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="aspect-video w-full mb-3 rounded-lg bg-muted flex items-center justify-center">
+                      <Users className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-lg">{group.name}</h3>
+                      <p className="text-sm text-muted-foreground mt-1">{group.description}</p>
+                    </div>
+                    {getStatusBadge(group.status)}
+                  </div>
+                </CardHeader>
                 
-                <div className="text-xs text-muted-foreground">
-                  마지막 활동: {formatDate(group.lastActivity)}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Users className="h-4 w-4" />
+                        <span>{group.currentMembers}/{group.maxMembers}명</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Crown className="h-4 w-4" />
+                        <span>{group.leader}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4" />
+                        <span>신청일: {formatDate(group.appliedAt)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

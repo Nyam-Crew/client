@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { ArrowLeft, Settings, Users, Crown, Shield, Bell, MessageSquare, Trophy, FileText } from 'lucide-react';
+import { ArrowLeft, Settings, Users, Crown, Shield, Bell, MessageSquare, Trophy, FileText, Edit, Trash2, UserPlus, UserMinus, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 
 interface TeamDetail {
@@ -62,7 +63,8 @@ const TeamDetailPage = () => {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('notices');
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  // 목업용 역할 설정 (실제 API 연동 시 서버에서 받아옴)
+  const [currentUserRole] = useState<'member' | 'sub_leader' | 'leader'>('leader'); // 테스트용으로 leader로 설정
 
   useEffect(() => {
     // 목업 데이터 로딩 시뮬레이션
@@ -160,7 +162,7 @@ const TeamDetailPage = () => {
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
                   <h1 className="text-2xl font-bold">{team.name}</h1>
-                  {getRoleBadge(team.userRole)}
+                  {getRoleBadge(currentUserRole)}
                 </div>
                 <p className="text-muted-foreground mb-4">{team.description}</p>
                 
@@ -182,14 +184,88 @@ const TeamDetailPage = () => {
                 </div>
               </div>
               
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setSettingsOpen(true)}
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                설정
-              </Button>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Settings className="h-4 w-4 mr-2" />
+                    설정
+                    <ChevronDown className="h-3 w-3 ml-1" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64" align="end">
+                  <div className="space-y-3">
+                    <div className="pb-2 border-b">
+                      <p className="text-sm font-medium">권한: {getRoleBadge(currentUserRole)}</p>
+                    </div>
+                    
+                    {/* 일반 멤버: 그룹 나가기만 표시 */}
+                    {currentUserRole === 'member' && (
+                      <div className="space-y-2">
+                        <Button 
+                          variant="destructive" 
+                          className="w-full justify-start text-sm"
+                          onClick={handleLeaveGroup}
+                        >
+                          그룹 나가기
+                        </Button>
+                      </div>
+                    )}
+                    
+                    {/* Leader/SubLeader: 모든 관리 기능 표시 */}
+                    {(currentUserRole === 'leader' || currentUserRole === 'sub_leader') && (
+                      <div className="space-y-2">
+                        <div className="pb-2">
+                          <p className="text-xs text-muted-foreground mb-2">관리자 기능</p>
+                          <div className="space-y-1">
+                            <Button variant="outline" className="w-full justify-start text-sm h-8" disabled>
+                              <Edit className="h-3 w-3 mr-2" />
+                              그룹 정보 변경
+                            </Button>
+                            <Button variant="outline" className="w-full justify-start text-sm h-8" disabled>
+                              <FileText className="h-3 w-3 mr-2" />
+                              그룹 공지 작성/수정/삭제
+                            </Button>
+                            <Button variant="outline" className="w-full justify-start text-sm h-8" disabled>
+                              <UserPlus className="h-3 w-3 mr-2" />
+                              가입 요청자 관리
+                            </Button>
+                            <Button variant="outline" className="w-full justify-start text-sm h-8" disabled>
+                              <UserMinus className="h-3 w-3 mr-2" />
+                              멤버 강퇴
+                            </Button>
+                            {currentUserRole === 'leader' && (
+                              <>
+                                <Button variant="outline" className="w-full justify-start text-sm h-8" disabled>
+                                  <Crown className="h-3 w-3 mr-2" />
+                                  방장 위임
+                                </Button>
+                                <Button variant="outline" className="w-full justify-start text-sm h-8" disabled>
+                                  <Shield className="h-3 w-3 mr-2" />
+                                  부방장 권한 부여
+                                </Button>
+                                <Button variant="destructive" className="w-full justify-start text-sm h-8" disabled>
+                                  <Trash2 className="h-3 w-3 mr-2" />
+                                  그룹 삭제
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="pt-2 border-t">
+                          <Button 
+                            variant="destructive" 
+                            className="w-full justify-start text-sm"
+                            onClick={handleLeaveGroup}
+                          >
+                            그룹 나가기
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </CardHeader>
         </Card>
@@ -314,54 +390,6 @@ const TeamDetailPage = () => {
           </TabsContent>
         </Tabs>
 
-        {/* 설정 모달 */}
-        <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>그룹 설정</DialogTitle>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <h4 className="font-medium">일반 기능</h4>
-                <Button 
-                  variant="destructive" 
-                  className="w-full justify-start"
-                  onClick={handleLeaveGroup}
-                >
-                  그룹 나가기
-                </Button>
-              </div>
-              
-              {canManageGroup && (
-                <div className="space-y-2">
-                  <h4 className="font-medium">관리자 기능</h4>
-                  <div className="space-y-2">
-                    <Button variant="outline" className="w-full justify-start" disabled>
-                      그룹 정보 변경
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start" disabled>
-                      가입 요청자 관리
-                    </Button>
-                    <Button variant="outline" className="w-full justify-start" disabled>
-                      멤버 관리
-                    </Button>
-                    {team.userRole === 'leader' && (
-                      <>
-                        <Button variant="outline" className="w-full justify-start" disabled>
-                          방장 위임
-                        </Button>
-                        <Button variant="outline" className="w-full justify-start" disabled>
-                          부방장 권한 부여
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     </div>
   );
