@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
+import ChatContainer from './ChatContainer';
 
 interface TeamDetail {
   id: string;
@@ -357,18 +358,18 @@ const TeamDetailPage = () => {
           </TabsContent>
 
           <TabsContent value="chat">
-            <Card>
-              <CardHeader>
+            <Card className="h-[600px] flex flex-col">
+              <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2">
                   <MessageSquare className="h-5 w-5" />
                   그룹 채팅
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <MessageSquare className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-                  <p className="text-muted-foreground">채팅 기능은 준비 중입니다</p>
-                </div>
+              <CardContent className="flex-1 p-0">
+                <ChatContainer 
+                  roomId={teamId || '1'} 
+                  currentUserId="current"
+                />
               </CardContent>
             </Card>
           </TabsContent>
