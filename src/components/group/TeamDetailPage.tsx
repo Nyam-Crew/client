@@ -63,6 +63,7 @@ const TeamDetailPage = () => {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('notices');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // 목업용 역할 설정 (실제 API 연동 시 서버에서 받아옴)
   const [currentUserRole] = useState<'member' | 'sub_leader' | 'leader'>('leader'); // 테스트용으로 leader로 설정
 
