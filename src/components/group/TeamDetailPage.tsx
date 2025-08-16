@@ -44,31 +44,22 @@ const mockTeam: TeamDetail = {
   joinedAt: '2024-01-15'
 };
 
-const mockNotices: Notice[] = [
-  {
-    id: '1',
-    title: '그룹 운영 방침 안내',
-    content: '안녕하세요! 매일 운동하기 그룹의 운영 방침을 안내드립니다...',
-    author: '김운동',
-    createdAt: '2024-01-20',
-    pinned: true
-  },
-  {
-    id: '2',
-    title: '이번 주 목표 달성 현황',
-    content: '이번 주 목표 달성률이 80%를 넘었습니다! 모두 수고하셨어요.',
-    author: '박헬스',
-    createdAt: '2024-01-19',
-    pinned: false
-  }
-];
+// 그룹당 하나의 공지사항만 허용
+const mockNotice: Notice | null = {
+  id: '1',
+  title: '그룹 운영 방침 안내',
+  content: '안녕하세요! 매일 운동하기 그룹의 운영 방침을 안내드립니다. 매일 30분 이상 운동을 목표로 하며, 서로 격려하고 응원하는 분위기를 만들어가겠습니다. 무리한 운동보다는 꾸준한 운동을 지향하며, 부상 예방에 항상 주의해주세요.',
+  author: '김운동',
+  createdAt: '2024-01-20',
+  pinned: true
+};
 
 const TeamDetailPage = () => {
   const { teamId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [team, setTeam] = useState<TeamDetail | null>(null);
-  const [notices, setNotices] = useState<Notice[]>([]);
+  const [notice, setNotice] = useState<Notice | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('notices');
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -77,7 +68,7 @@ const TeamDetailPage = () => {
     // 목업 데이터 로딩 시뮬레이션
     setTimeout(() => {
       setTeam(mockTeam);
-      setNotices(mockNotices);
+      setNotice(mockNotice);
       setLoading(false);
     }, 800);
   }, [teamId]);
@@ -158,7 +149,7 @@ const TeamDetailPage = () => {
             onClick={() => navigate('/api/teams?tab=mine')}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            내 그룹으로 돌아가기
+            목록으로 돌아가기
           </Button>
         </div>
 
@@ -222,38 +213,51 @@ const TeamDetailPage = () => {
                   </CardTitle>
                   {canManageGroup && (
                     <Button size="sm" disabled>
-                      공지 작성
+                      {notice ? '공지 수정' : '공지 작성'}
                     </Button>
                   )}
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {notices.map((notice) => (
-                    <div key={notice.id} className="border-b pb-4 last:border-b-0">
-                      <div className="flex items-start justify-between mb-2">
+                {notice ? (
+                  <div className="space-y-4">
+                    <div className="border rounded-lg p-4 bg-card">
+                      <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-2">
-                          <h3 className="font-medium">{notice.title}</h3>
+                          <h3 className="font-semibold text-lg">{notice.title}</h3>
                           {notice.pinned && (
                             <Badge variant="secondary" className="text-xs">고정</Badge>
                           )}
                         </div>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-sm text-muted-foreground">
                           {new Date(notice.createdAt).toLocaleDateString('ko-KR')}
                         </span>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-2">{notice.content}</p>
-                      <div className="text-xs text-muted-foreground">작성자: {notice.author}</div>
+                      <p className="text-sm leading-relaxed mb-3 whitespace-pre-wrap">{notice.content}</p>
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs text-muted-foreground">작성자: {notice.author}</div>
+                        {canManageGroup && (
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" disabled>
+                              수정
+                            </Button>
+                            <Button size="sm" variant="destructive" disabled>
+                              삭제
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  ))}
-                  
-                  {notices.length === 0 && (
-                    <div className="text-center py-8">
-                      <FileText className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-                      <p className="text-muted-foreground">등록된 공지사항이 없습니다</p>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <FileText className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
+                    <p className="text-muted-foreground">등록된 공지사항이 없습니다</p>
+                    {canManageGroup && (
+                      <p className="text-sm text-muted-foreground mt-1">공지사항을 작성해보세요</p>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

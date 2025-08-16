@@ -32,7 +32,7 @@ const GroupPage = () => {
       <Route path="/:teamId/*" element={<TeamDetailPage />} />
       <Route path="/" element={
         <div className="min-h-screen bg-background">
-          <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="max-w-4xl mx-auto px-4 py-6">
             <div className="mb-6">
               <h1 className="text-2xl font-bold text-foreground mb-2">그룹</h1>
               <p className="text-muted-foreground">함께하는 건강한 라이프스타일</p>

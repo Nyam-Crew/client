@@ -132,6 +132,19 @@ const MyGroupsTab = () => {
             onClick={() => handleGroupClick(group.id)}
           >
             <CardHeader>
+              {group.image ? (
+                <div className="aspect-video w-full mb-3 rounded-lg overflow-hidden">
+                  <img 
+                    src={group.image} 
+                    alt={`${group.name} 그룹 이미지`}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="aspect-video w-full mb-3 rounded-lg bg-muted flex items-center justify-center">
+                  <Users className="h-8 w-8 text-muted-foreground" />
+                </div>
+              )}
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <h3 className="font-semibold text-lg">{group.name}</h3>
