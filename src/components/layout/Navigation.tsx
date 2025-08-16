@@ -6,9 +6,8 @@ import {
   PlusCircle, 
   Trophy, 
   Users, 
-  MessageCircle, 
   User,
-  Calendar,
+  UserPlus,
   Bell 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,10 +19,8 @@ const Navigation = () => {
   const navItems = [
     { icon: Home, label: '홈', path: '/' },
     { icon: PlusCircle, label: '식단', path: '/meal' },
-    { icon: Trophy, label: '챌린지', path: '/challenge' },
     { icon: Users, label: '커뮤니티', path: '/community' },
-    { icon: MessageCircle, label: '채팅', path: '/chat' },
-    { icon: Calendar, label: '캘린더', path: '/calendar' },
+    { icon: UserPlus, label: '그룹', path: '/api/teams' },
     { icon: User, label: '마이페이지', path: '/profile' },
   ];
 
@@ -40,7 +37,7 @@ const Navigation = () => {
           <div className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = location.pathname === item.path;
+              const isActive = item.path === '/api/teams' ? location.pathname.startsWith('/api/teams') : location.pathname === item.path;
               
               return (
                 <Link key={item.path} to={item.path}>
@@ -68,10 +65,10 @@ const Navigation = () => {
 
         {/* 모바일 네비게이션 */}
         <div className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border">
-          <div className="grid grid-cols-4 gap-1 p-2">
-            {navItems.slice(0, 4).map((item) => {
+          <div className="grid grid-cols-5 gap-1 p-2">
+            {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = location.pathname === item.path;
+              const isActive = item.path === '/api/teams' ? location.pathname.startsWith('/api/teams') : location.pathname === item.path;
               
               return (
                 <Link key={item.path} to={item.path}>

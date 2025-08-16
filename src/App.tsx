@@ -12,6 +12,7 @@ import Community from "./pages/Community";
 import Login from "./pages/Login";
 import MemberInfo from "./pages/MemberInfo";
 import MyPage from "./pages/MyPage";
+import GroupPage from "./pages/GroupPage";
 import Navigation from "./components/layout/Navigation";
 import NotFound from "./pages/NotFound";
 
@@ -33,8 +34,7 @@ const App = () => (
           <Route path="/community" element={<Community />} />
           <Route path="/login" element={<Login />} />
           <Route path="/member-info" element={<MemberInfo />} />
-          <Route path="/chat" element={<Index />} />
-          <Route path="/calendar" element={<Index />} />
+          <Route path="/api/teams/*" element={<GroupPage />} />
           <Route path="/profile" element={<MyPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
