@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { 
   Home, 
-  PlusCircle, 
+  BookOpen, 
   Trophy, 
   Users, 
   User,
@@ -18,7 +18,7 @@ const Navigation = () => {
 
   const navItems = [
     { icon: Home, label: '홈', path: '/' },
-    { icon: PlusCircle, label: '식단', path: '/meal' },
+    { icon: BookOpen, label: '기록', path: '/meal' },
     { icon: Users, label: '커뮤니티', path: '/community' },
     { icon: UserPlus, label: '그룹', path: '/api/teams' },
     { icon: User, label: '마이페이지', path: '/profile' },

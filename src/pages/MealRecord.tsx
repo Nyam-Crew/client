@@ -204,7 +204,7 @@ const MealRecord = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setCalendarDialogOpen(true)}
+            onClick={() => navigate('/record/calendar')}
             className="p-2"
           >
             <Calendar size={24} className="text-gray-600" />
@@ -243,147 +243,116 @@ const MealRecord = () => {
 
       {/* 탭 */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="bg-brand-cream px-4">
+        <div className="bg-brand-light px-4">
           <TabsList className="w-full bg-transparent border-none">
             <TabsTrigger 
               value="myDay" 
-              className="flex-1 text-foreground bg-transparent data-[state=active]:bg-foreground data-[state=active]:text-background rounded-lg transition-all duration-200"
+              className="flex-1 text-muted-foreground bg-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg transition-all duration-200 hover:text-foreground"
             >
               나의 하루
             </TabsTrigger>
             <TabsTrigger 
               value="whatIAte" 
-              className="flex-1 text-foreground bg-transparent data-[state=active]:bg-foreground data-[state=active]:text-background rounded-lg transition-all duration-200"
+              className="flex-1 text-muted-foreground bg-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg transition-all duration-200 hover:text-foreground"
             >
               먹었어요
             </TabsTrigger>
             <TabsTrigger 
               value="dailyMissions" 
-              className="flex-1 text-foreground bg-transparent data-[state=active]:bg-foreground data-[state=active]:text-background rounded-lg transition-all duration-200"
+              className="flex-1 text-muted-foreground bg-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg transition-all duration-200 hover:text-foreground"
             >
               데일리 미션
             </TabsTrigger>
           </TabsList>
         </div>
 
-        {/* 나의 하루 탭 - 개선된 카드 레이아웃 */}
-        <TabsContent value="myDay" className="px-4 pt-6 pb-8 bg-gradient-to-b from-background to-accent/20 min-h-screen">
+        {/* 나의 하루 탭 - 리디자인된 깔끔한 레이아웃 */}
+        <TabsContent value="myDay" className="px-4 pt-6 pb-8 bg-brand-light min-h-screen">
           
-          {/* 칼로리 섭취 카드 */}
-          <Card className="mb-6 shadow-lg border-0 bg-white/90 backdrop-blur-sm">
+          {/* 히어로 칼로리 카드 */}
+          <Card className="mb-6 shadow-sm border-0 bg-white">
             <CardContent className="p-8 text-center">
-              <div className="text-foreground mb-4">
-                <span className="text-4xl md:text-5xl font-bold text-primary">{todayStats.calories.current}</span>
-                <span className="text-xl md:text-2xl text-muted-foreground">/{todayStats.calories.target}kcal</span>
+              <div className="mb-6">
+                <div className="text-5xl font-bold text-primary mb-2">{todayStats.calories.current}</div>
+                <div className="text-lg text-muted-foreground">/ {todayStats.calories.target}kcal</div>
+                <div className="text-sm text-muted-foreground mt-1">오늘 섭취한 칼로리</div>
               </div>
-              <div className="text-sm text-muted-foreground">오늘 섭취한 칼로리</div>
+              
+              {/* 진행바 */}
+              <div className="mb-4">
+                <Progress 
+                  value={caloriePercentage} 
+                  className="w-full h-2"
+                />
+              </div>
+              
+              {/* 남은 칼로리 배지 */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-success/10 rounded-full">
+                <div className="w-2 h-2 bg-success rounded-full"></div>
+                <span className="text-success font-semibold text-sm">
+                  {todayStats.calories.target - todayStats.calories.current}kcal 더 먹을 수 있어요
+                </span>
+              </div>
             </CardContent>
           </Card>
           
           {/* 영양소 비율 카드 */}
-          <Card className="mb-6 shadow-lg border-0 bg-white/90 backdrop-blur-sm">
+          <Card className="shadow-sm border-0 bg-white">
             <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4 text-center">영양소 비율</h3>
-              <div className="flex justify-center gap-4 md:gap-8 mb-6">
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-gradient-to-r from-red-400 to-red-500 rounded-full shadow-sm"></div>
-                  <span className="text-foreground font-medium text-sm md:text-base">탄 {todayStats.carbs.percentage}%</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-full shadow-sm"></div>
-                  <span className="text-foreground font-medium text-sm md:text-base">단 {todayStats.protein.percentage}%</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full shadow-sm"></div>
-                  <span className="text-foreground font-medium text-sm md:text-base">지 {todayStats.fat.percentage}%</span>
-                </div>
-              </div>
+              <h3 className="text-lg font-semibold text-foreground mb-6 text-center">영양소 현황</h3>
               
-              {/* 영양소별 Progress Bar */}
+              {/* 영양소별 정보 */}
               <div className="space-y-4">
+                {/* 탄수화물 */}
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <label className="text-sm font-medium text-foreground">탄수화물</label>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-warning rounded-full"></div>
+                      <span className="text-sm font-medium text-foreground">탄수화물</span>
+                    </div>
                     <span className="text-sm font-bold text-foreground">
                       {todayStats.carbs.current}/{todayStats.carbs.target}g
                     </span>
                   </div>
                   <Progress 
                     value={todayStats.carbs.percentage} 
-                    className="w-full h-3"
-                    aria-label={`탄수화물 섭취량: ${todayStats.carbs.current}g / ${todayStats.carbs.target}g`}
+                    className="w-full h-2"
                   />
                 </div>
                 
+                {/* 단백질 */}
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <label className="text-sm font-medium text-foreground">단백질</label>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-destructive rounded-full"></div>
+                      <span className="text-sm font-medium text-foreground">단백질</span>
+                    </div>
                     <span className="text-sm font-bold text-foreground">
                       {todayStats.protein.current}/{todayStats.protein.target}g
                     </span>
                   </div>
                   <Progress 
                     value={todayStats.protein.percentage} 
-                    className="w-full h-3"
-                    aria-label={`단백질 섭취량: ${todayStats.protein.current}g / ${todayStats.protein.target}g`}
+                    className="w-full h-2"
                   />
                 </div>
                 
+                {/* 지방 */}
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <label className="text-sm font-medium text-foreground">지방</label>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-primary rounded-full"></div>
+                      <span className="text-sm font-medium text-foreground">지방</span>
+                    </div>
                     <span className="text-sm font-bold text-foreground">
                       {todayStats.fat.current}/{todayStats.fat.target}g
                     </span>
                   </div>
                   <Progress 
                     value={todayStats.fat.percentage} 
-                    className="w-full h-3"
-                    aria-label={`지방 섭취량: ${todayStats.fat.current}g / ${todayStats.fat.target}g`}
+                    className="w-full h-2"
                   />
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 귀여운 일러스트 카드 */}
-          <Card className="mb-6 shadow-lg border-0 overflow-hidden">
-            <div className="relative bg-gradient-to-br from-brand-cream via-brand-light to-brand-green/20 p-8">
-              {/* 상단 아치 */}
-              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                <div className="w-24 h-12 rounded-t-full bg-gradient-to-r from-brand-green/30 via-brand-cream/50 to-brand-green/30"></div>
-              </div>
-              
-              {/* 일러스트 */}
-              <div className="relative z-10 flex justify-center">
-                <div className="p-4 bg-white/80 rounded-full shadow-lg">
-                  <img 
-                    src="/cute-food-illustration.png" 
-                    alt="귀여운 건강식품 캐릭터들" 
-                    className="w-20 h-20 md:w-24 md:h-24 object-contain"
-                  />
-                </div>
-              </div>
-              
-              {/* 하단 아치 */}
-              <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2">
-                <div className="w-32 h-16 rounded-b-full bg-gradient-to-r from-brand-cream/40 via-brand-green/60 to-brand-cream/40"></div>
-              </div>
-            </div>
-          </Card>
-
-          {/* 칼로리 상태 카드 */}
-          <Card className="shadow-lg border-0 bg-gradient-to-r from-success/10 to-primary/10">
-            <CardContent className="p-6 text-center">
-              <div className="flex flex-col md:flex-row justify-center items-center gap-4 md:gap-8 text-sm">
-                <span className="flex items-center gap-2 text-foreground">
-                  <span role="img" aria-label="불꽃" className="text-lg">🔥</span>
-                  <span className="font-medium">{todayStats.calories.target - todayStats.calories.current}kcal 소모 필요</span>
-                </span>
-                <div className="hidden md:block w-px h-6 bg-border"></div>
-                <span className="text-success font-semibold">
-                  {todayStats.calories.target - todayStats.calories.current}kcal 더 먹을 수 있어요!
-                </span>
               </div>
             </CardContent>
           </Card>
@@ -630,17 +599,17 @@ const MealRecord = () => {
             {/* 음식 추가 및 안먹었어요 버튼 */}
             <div className="flex gap-2">
               <Button 
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3"
+                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-3"
                 onClick={() => {
                   setMealDialogOpen(false);
                   handleAddFoodClick();
                 }}
               >
-                음식 추가
+                음식 등록
               </Button>
               <Button 
                 variant="outline"
-                className="flex-1 py-3"
+                className="px-4 py-3 border-muted text-muted-foreground hover:bg-muted/10"
                 onClick={() => handleSkipMeal(selectedMeal || '')}
               >
                 안먹었어요
@@ -649,7 +618,7 @@ const MealRecord = () => {
 
             {/* 수정 완료 버튼 */}
             <Button 
-              className="w-full mt-2 bg-black hover:bg-gray-800 text-white py-3"
+              className="w-full mt-2 bg-foreground hover:bg-foreground/90 text-background py-3"
               onClick={() => {
                 setMealDialogOpen(false);
                 // 저장 로직
