@@ -185,7 +185,7 @@ const MealRecord = () => {
   const caloriePercentage = (todayStats.calories.current / todayStats.calories.target) * 100;
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen" style={{ backgroundColor: '#fffff5' }}>
       {/* 상단 월 선택 및 캘린더 바 */}
       <div className="bg-white px-4 py-3 border-b">
         <div className="flex items-center justify-between mb-3">
@@ -243,23 +243,26 @@ const MealRecord = () => {
 
       {/* 탭 */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="bg-brand-light px-4">
+        <div style={{ backgroundColor: '#fffff5' }} className="px-4">
           <TabsList className="w-full bg-transparent border-none">
             <TabsTrigger 
               value="myDay" 
-              className="flex-1 text-muted-foreground bg-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg transition-all duration-200 hover:text-foreground"
+              className="flex-1 text-gray-600 rounded-lg transition-all duration-200 hover:text-gray-800 data-[state=active]:text-black"
+              style={{ backgroundColor: activeTab === 'myDay' ? '#fffff5' : '#f8f7ec' }}
             >
               나의 하루
             </TabsTrigger>
             <TabsTrigger 
               value="whatIAte" 
-              className="flex-1 text-muted-foreground bg-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg transition-all duration-200 hover:text-foreground"
+              className="flex-1 text-gray-600 rounded-lg transition-all duration-200 hover:text-gray-800 data-[state=active]:text-black"
+              style={{ backgroundColor: activeTab === 'whatIAte' ? '#fffff5' : '#f8f7ec' }}
             >
               먹었어요
             </TabsTrigger>
             <TabsTrigger 
               value="dailyMissions" 
-              className="flex-1 text-muted-foreground bg-transparent data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-lg transition-all duration-200 hover:text-foreground"
+              className="flex-1 text-gray-600 rounded-lg transition-all duration-200 hover:text-gray-800 data-[state=active]:text-black"
+              style={{ backgroundColor: activeTab === 'dailyMissions' ? '#fffff5' : '#f8f7ec' }}
             >
               데일리 미션
             </TabsTrigger>
@@ -267,7 +270,7 @@ const MealRecord = () => {
         </div>
 
         {/* 나의 하루 탭 - 리디자인된 깔끔한 레이아웃 */}
-        <TabsContent value="myDay" className="px-4 pt-6 pb-8 bg-brand-light min-h-screen">
+        <TabsContent value="myDay" className="px-4 pt-6 pb-8 min-h-screen" style={{ backgroundColor: '#fffff5' }}>
           
           {/* 히어로 칼로리 카드 */}
           <Card className="mb-6 shadow-sm border-0 bg-white">
@@ -360,7 +363,7 @@ const MealRecord = () => {
         </TabsContent>
 
         {/* 먹었어요 탭 */}
-        <TabsContent value="whatIAte" className="px-4 pt-6 pb-8 space-y-6 bg-white">
+        <TabsContent value="whatIAte" className="px-4 pt-6 pb-8 space-y-6" style={{ backgroundColor: '#fffff5' }}>
           
           {/* 체중 입력 카드 */}
           <Card className="shadow-sm border border-border/50 bg-gradient-to-r from-primary/5 to-secondary/10">
@@ -444,7 +447,7 @@ const MealRecord = () => {
         </TabsContent>
 
         {/* 데일리 미션 탭 */}
-        <TabsContent value="dailyMissions" className="px-4 pt-6 pb-8 space-y-4 bg-white">
+        <TabsContent value="dailyMissions" className="px-4 pt-6 pb-8 space-y-4" style={{ backgroundColor: '#fffff5' }}>
           <div className="text-center mb-6">
             <h2 className="text-xl font-bold text-foreground mb-2">오늘의 미션</h2>
             <p className="text-sm text-muted-foreground">

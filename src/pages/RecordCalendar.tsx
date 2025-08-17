@@ -39,6 +39,13 @@ const RecordCalendar = () => {
     '2025-01-18': { calories: 644, water: 1200, missionsCompleted: false },
     '2025-01-19': { calories: 0, missionsCompleted: false },
     '2025-01-20': { calories: 1200, weight: 64.8, water: 1800, missionsCompleted: true },
+    '2025-01-21': { calories: 1450, weight: 64.5, water: 2000, missionsCompleted: true },
+    '2025-01-22': { calories: 980, water: 1300, missionsCompleted: false },
+    '2025-01-23': { calories: 1600, weight: 64.3, water: 1600, missionsCompleted: true },
+    '2025-01-24': { calories: 750, water: 900, missionsCompleted: false },
+    '2025-01-25': { calories: 1380, weight: 64.0, water: 1700, missionsCompleted: true },
+    '2025-01-26': { calories: 1100, water: 1400, missionsCompleted: true },
+    '2025-01-27': { calories: 1250, weight: 63.8, water: 1900, missionsCompleted: false },
   };
 
   const formatDateKey = (date: Date): string => {
@@ -78,7 +85,7 @@ const RecordCalendar = () => {
   };
 
   return (
-    <div className="min-h-screen bg-brand-light">
+    <div className="min-h-screen" style={{ backgroundColor: '#fffff5' }}>
       {/* 헤더 */}
       <div className="bg-white border-b border-border px-4 py-4 sticky top-0 z-10">
         <div className="flex items-center justify-between">
@@ -153,9 +160,7 @@ const RecordCalendar = () => {
                       <div className="relative w-full h-full flex flex-col justify-start p-2 min-h-[110px]">
                         {/* 좌상단: 날짜 숫자 */}
                         <div className={`text-sm font-medium mb-2 self-start ${
-                          isSelected ? 'text-white' : 
-                          isToday ? 'text-brand-green font-bold' : 
-                          'text-gray-700'
+                          isSelected ? 'text-white' : 'text-gray-700'
                         }`}>
                           {date.getDate()}
                         </div>
@@ -189,13 +194,13 @@ const RecordCalendar = () => {
                 }}
                 classNames={{
                   caption_label: "hidden", // 영문 월 표기 숨김
-                  day: "min-h-[110px] w-full p-0 text-sm relative hover:shadow-sm transition-all rounded-md border border-gray-100",
-                  day_today: "ring-1 ring-brand-green bg-brand-green/5",
-                  day_selected: "bg-brand-green text-white hover:bg-brand-green/90",
+                  day: "min-h-[120px] w-full p-0 text-sm relative hover:shadow-sm transition-all rounded-md border border-gray-200",
+                  day_today: "border-2 border-gray-400",
+                  day_selected: "bg-blue-500 text-white hover:bg-blue-600",
                   day_outside: "opacity-50",
                   head_cell: "text-muted-foreground font-medium text-sm w-full text-center py-2",
                   cell: "p-1 w-full",
-                  table: "w-full border-collapse",
+                  table: "w-full border-collapse border-spacing-0",
                   head_row: "flex w-full",
                   row: "flex w-full mt-1"
                 }}

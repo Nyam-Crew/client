@@ -155,15 +155,28 @@ const MealCard = ({
                 <span className="text-2xl mb-2 block">🍽️</span>
                 아직 기록이 없어요
               </div>
-              <Button 
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAddFood(mealType);
-                }}
-              >
-                음식 등록
-              </Button>
+              <div className="flex gap-2 justify-center">
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddFood(mealType);
+                  }}
+                >
+                  음식 등록
+                </Button>
+                <Button 
+                  variant="outline"
+                  className="border-gray-300 text-gray-600 hover:bg-gray-50"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // TODO: Handle skip meal
+                    console.log('Skipped meal:', mealType);
+                  }}
+                >
+                  안먹었어요
+                </Button>
+              </div>
             </div>
           )}
         </div>
