@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, ArrowLeft, CheckCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
 
 interface DayData {
   calories: number;
@@ -15,17 +15,30 @@ interface DayData {
 
 const RecordCalendar = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  // 샘플 데이터 - 각 날짜별 기록
+  // URL에서 선택된 날짜 파라미터 읽기
+  useEffect(() => {
+    const dateParam = searchParams.get('d');
+    if (dateParam) {
+      const parsedDate = new Date(dateParam);
+      if (!isNaN(parsedDate.getTime())) {
+        setSelectedDate(parsedDate);
+        setCurrentMonth(parsedDate);
+      }
+    }
+  }, [searchParams]);
+
+  // 샘플 데이터 - 각 날짜별 기록 (2025년으로 업데이트)
   const sampleData: Record<string, DayData> = {
-    '2024-01-15': { calories: 1120, weight: 65.5, water: 1200, missionsCompleted: true },
-    '2024-01-16': { calories: 890, water: 800, missionsCompleted: false },
-    '2024-01-17': { calories: 1340, weight: 65.2, water: 1500, missionsCompleted: true },
-    '2024-01-18': { calories: 644, water: 1200, missionsCompleted: false },
-    '2024-01-19': { calories: 0, missionsCompleted: false },
-    '2024-01-20': { calories: 1200, weight: 64.8, water: 1800, missionsCompleted: true },
+    '2025-01-15': { calories: 1120, weight: 65.5, water: 1200, missionsCompleted: true },
+    '2025-01-16': { calories: 890, water: 800, missionsCompleted: false },
+    '2025-01-17': { calories: 1340, weight: 65.2, water: 1500, missionsCompleted: true },
+    '2025-01-18': { calories: 644, water: 1200, missionsCompleted: false },
+    '2025-01-19': { calories: 0, missionsCompleted: false },
+    '2025-01-20': { calories: 1200, weight: 64.8, water: 1800, missionsCompleted: true },
   };
 
   const formatDateKey = (date: Date): string => {
@@ -54,6 +67,16 @@ const RecordCalendar = () => {
     setSelectedDate(today);
   };
 
+  const handleBack = () => {
+    // 브라우저 히스토리가 있으면 뒤로가기, 없으면 기록 메인으로 이동
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      const dateParam = formatDateKey(selectedDate);
+      navigate(`/record?d=${dateParam}&tab=myday`);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-brand-light">
       {/* 헤더 */}
@@ -63,7 +86,7 @@ const RecordCalendar = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate(-1)}
+              onClick={handleBack}
               className="p-2"
             >
               <ArrowLeft size={20} className="text-foreground" />
@@ -124,46 +147,57 @@ const RecordCalendar = () => {
                   DayContent: ({ date }) => {
                     const dayData = getDayData(date);
                     const isToday = date.toDateString() === new Date().toDateString();
+                    const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
                     
                     return (
-                      <div className="relative w-full h-full flex flex-col items-center justify-start p-1">
-                        <div className={`text-sm font-medium mb-1 ${isToday ? 'text-primary font-bold' : 'text-foreground'}`}>
+                      <div className="relative w-full h-full flex flex-col justify-start p-2 min-h-[110px]">
+                        {/* 좌상단: 날짜 숫자 */}
+                        <div className={`text-sm font-medium mb-2 self-start ${
+                          isSelected ? 'text-white' : 
+                          isToday ? 'text-brand-green font-bold' : 
+                          'text-gray-700'
+                        }`}>
                           {date.getDate()}
                         </div>
                         
-                        {dayData && (
-                          <div className="text-xs space-y-0.5 text-center w-full">
-                            <div className="text-foreground font-medium">
-                              {dayData.calories}kcal
-                            </div>
-                            <div className="text-muted-foreground">
-                              {dayData.weight ? `${dayData.weight}kg` : '-'}
-                            </div>
-                            <div className="text-muted-foreground">
-                              {dayData.water ? `${dayData.water}ml` : '-'}
-                            </div>
+                        {/* 우상단: 데일리 미션 배지 */}
+                        {dayData?.missionsCompleted && (
+                          <div className="absolute top-2 right-2">
+                            <Badge className="rounded-full px-2 py-0.5 bg-green-100 text-green-700 text-[11px] font-medium border-0">
+                              ✓ 도장
+                            </Badge>
                           </div>
                         )}
                         
-                        {dayData?.missionsCompleted && (
-                          <div className="absolute bottom-1 right-1">
-                            <CheckCircle size={12} className="text-success fill-current" />
+                        {/* 날짜 아래 3줄 요약 */}
+                        <div className={`text-xs space-y-1 w-full tabular-nums ${
+                          isSelected ? 'text-white/90' : 'text-gray-600'
+                        }`}>
+                          <div className="font-medium">
+                            {dayData ? `${dayData.calories}kcal` : '0kcal'}
                           </div>
-                        )}
+                          <div>
+                            {dayData?.weight ? `${dayData.weight}kg` : '-'}
+                          </div>
+                          <div>
+                            {dayData?.water ? `${dayData.water}ml` : '-'}
+                          </div>
+                        </div>
                       </div>
                     );
                   }
                 }}
                 classNames={{
-                  day: "h-20 w-full p-0 text-sm relative hover:bg-brand-green/10 transition-colors rounded-lg",
-                  day_today: "bg-brand-green/20 text-primary font-bold",
-                  day_selected: "bg-primary text-primary-foreground hover:bg-primary/90",
+                  caption_label: "hidden", // 영문 월 표기 숨김
+                  day: "min-h-[110px] w-full p-0 text-sm relative hover:shadow-sm transition-all rounded-md border border-gray-100",
+                  day_today: "ring-1 ring-brand-green bg-brand-green/5",
+                  day_selected: "bg-brand-green text-white hover:bg-brand-green/90",
                   day_outside: "opacity-50",
-                  head_cell: "text-muted-foreground font-medium text-sm w-full",
-                  cell: "p-0 w-full",
+                  head_cell: "text-muted-foreground font-medium text-sm w-full text-center py-2",
+                  cell: "p-1 w-full",
                   table: "w-full border-collapse",
                   head_row: "flex w-full",
-                  row: "flex w-full mt-2"
+                  row: "flex w-full mt-1"
                 }}
               />
             </div>
