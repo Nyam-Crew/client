@@ -1194,12 +1194,7 @@ const MyPage = () => {
                               <p className="text-sm text-foreground leading-relaxed">{comment.comment}</p>
                             </div>
                             
-                            <div className="flex items-center justify-between text-xs text-muted-foreground">
-                              <div className="flex items-center gap-1">
-                                <Heart size={12} className="text-red-500" />
-                                <span>{comment.likes}</span>
-                                <span className="ml-2">좋아요</span>
-                              </div>
+                            <div className="flex items-center justify-end text-xs text-muted-foreground">
                               <span>{comment.createdDate}</span>
                             </div>
                           </div>
