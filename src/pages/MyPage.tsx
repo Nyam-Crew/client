@@ -24,7 +24,9 @@ import {
   Eye,
   MessageCircle,
   Edit,
-  Check
+  Check,
+  FileText,
+  MessageSquare
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -70,6 +72,8 @@ const MyPage = () => {
   const [isNicknameChecked, setIsNicknameChecked] = useState(false);
   const [currentBadgePage, setCurrentBadgePage] = useState(1);
   const [currentBookmarkPage, setCurrentBookmarkPage] = useState(1);
+  const [currentPostPage, setCurrentPostPage] = useState(1);
+  const [currentCommentPage, setCurrentCommentPage] = useState(1);
   const { toast } = useToast();
 
   const form = useForm<MemberInfoForm>({
@@ -308,6 +312,204 @@ const MyPage = () => {
   const startBookmarkIndex = (currentBookmarkPage - 1) * bookmarksPerPage;
   const currentBookmarks = bookmarkedPosts.slice(startBookmarkIndex, startBookmarkIndex + bookmarksPerPage);
 
+  // 내가 작성한 게시글 데이터
+  const userPosts = [
+    {
+      id: 1,
+      title: '다이어트 성공 후기 - 3개월만에 10kg 감량!',
+      content: '안녕하세요! 3개월 동안 꾸준히 식단 관리하고 운동한 결과 목표 체중을 달성했어요...',
+      category: '다이어트',
+      likes: 245,
+      views: 1890,
+      comments: 89,
+      createdDate: '2024-01-20',
+      thumbnail: '/public/placeholder.svg'
+    },
+    {
+      id: 2,
+      title: '집에서 할 수 있는 간단한 홈트레이닝 루틴',
+      content: '헬스장 가기 힘든 분들을 위해 집에서 할 수 있는 운동법을 공유해요...',
+      category: '운동',
+      likes: 167,
+      views: 1234,
+      comments: 56,
+      createdDate: '2024-01-18',
+      thumbnail: null
+    },
+    {
+      id: 3,
+      title: '건강한 아침 식단 레시피 모음',
+      content: '바쁜 아침에도 쉽게 만들 수 있는 건강한 아침 식사 레시피들을 정리했어요...',
+      category: '레시피',
+      likes: 198,
+      views: 1567,
+      comments: 73,
+      createdDate: '2024-01-15',
+      thumbnail: '/public/placeholder.svg'
+    },
+    {
+      id: 4,
+      title: '물 마시기 습관 만들기 - 나만의 비법',
+      content: '하루 2L 물 마시기가 어려웠는데 이 방법으로 습관을 만들었어요...',
+      category: '건강',
+      likes: 134,
+      views: 987,
+      comments: 42,
+      createdDate: '2024-01-12',
+      thumbnail: null
+    },
+    {
+      id: 5,
+      title: '직장인 도시락 준비 꿀팁',
+      content: '매일 점심을 사먹기엔 부담스럽고, 건강도 챙기고 싶어서 시작한 도시락...',
+      category: '레시피',
+      likes: 289,
+      views: 2134,
+      comments: 95,
+      createdDate: '2024-01-10',
+      thumbnail: '/public/placeholder.svg'
+    },
+    {
+      id: 6,
+      title: '스트레스 먹기 극복하기',
+      content: '스트레스 받으면 자꾸 야식을 찾게 되는데, 이걸 극복한 제 경험을 공유해요...',
+      category: '다이어트',
+      likes: 156,
+      views: 1345,
+      comments: 67,
+      createdDate: '2024-01-08',
+      thumbnail: null
+    },
+    {
+      id: 7,
+      title: '겨울철 면역력 강화 음식들',
+      content: '요즘 감기가 유행인데, 면역력 강화에 도움되는 음식들을 소개해드려요...',
+      category: '건강',
+      likes: 178,
+      views: 1456,
+      comments: 52,
+      createdDate: '2024-01-05',
+      thumbnail: '/public/placeholder.svg'
+    },
+    {
+      id: 8,
+      title: '새해 건강 목표 세우기',
+      content: '새해를 맞아 건강한 한 해를 위한 목표를 세워보았어요...',
+      category: '건강',
+      likes: 203,
+      views: 1687,
+      comments: 78,
+      createdDate: '2024-01-01',
+      thumbnail: null
+    }
+  ];
+
+  // 내가 작성한 댓글 데이터
+  const userComments = [
+    {
+      id: 1,
+      postTitle: '다이어트 중 치팅데이 괜찮을까요?',
+      comment: '저도 비슷한 고민이 있었는데, 일주일에 한 번 정도는 괜찮다고 생각해요. 다만 과도하지 않게 조절하는 게 중요한 것 같아요!',
+      postAuthor: '다이어터123',
+      likes: 23,
+      createdDate: '2024-01-22',
+      postCategory: '다이어트'
+    },
+    {
+      id: 2,
+      postTitle: '운동 후 단백질 섭취 타이밍',
+      comment: '운동 후 30분 이내에 단백질을 섭취하는 게 가장 효과적이라고 들었어요. 저는 보통 운동 직후 단백질 쉐이크를 마셔요.',
+      postAuthor: '헬스마니아',
+      likes: 45,
+      createdDate: '2024-01-21',
+      postCategory: '운동'
+    },
+    {
+      id: 3,
+      postTitle: '아침 공복 운동 효과',
+      comment: '공복 운동이 지방 연소에 더 효과적이긴 하지만, 체력이 부족하면 무리하지 마세요. 저는 바나나 반 개 정도만 먹고 운동해요.',
+      postAuthor: '모닝러너',
+      likes: 34,
+      createdDate: '2024-01-20',
+      postCategory: '운동'
+    },
+    {
+      id: 4,
+      postTitle: '건강한 간식 추천해주세요',
+      comment: '견과류나 그릭요거트 추천드려요! 포만감도 좋고 영양가도 높아서 다이어트할 때 정말 도움됐어요.',
+      postAuthor: '간식러버',
+      likes: 18,
+      createdDate: '2024-01-19',
+      postCategory: '레시피'
+    },
+    {
+      id: 5,
+      postTitle: '물 마시기가 어려워요',
+      comment: '저도 그랬는데 레몬이나 오이를 넣어서 마시면 훨씬 수월해져요. 향이 있으니까 물이 더 맛있게 느껴져요!',
+      postAuthor: '수분부족',
+      likes: 67,
+      createdDate: '2024-01-18',
+      postCategory: '건강'
+    },
+    {
+      id: 6,
+      postTitle: '야식 끊는 방법',
+      comment: '저는 양치질을 일찍 해버리는 방법을 써요. 양치 후에는 뭔가 먹기 싫어지더라고요. 그리고 따뜻한 차를 마시는 것도 도움돼요.',
+      postAuthor: '야식왕',
+      likes: 89,
+      createdDate: '2024-01-17',
+      postCategory: '다이어트'
+    },
+    {
+      id: 7,
+      postTitle: '스쿼트 자세 교정',
+      comment: '무릎이 발끝을 넘어가지 않게 주의하세요! 그리고 거울을 보면서 자세를 체크하는 게 도움돼요. 처음엔 천천히 하시는 걸 추천해요.',
+      postAuthor: '스쿼트초보',
+      likes: 52,
+      createdDate: '2024-01-16',
+      postCategory: '운동'
+    },
+    {
+      id: 8,
+      postTitle: '겨울철 비타민D 부족',
+      comment: '겨울에는 햇빛을 많이 못 받아서 비타민D가 부족해지기 쉬워요. 영양제로 보충하거나 비타민D가 풍부한 음식을 드세요.',
+      postAuthor: '영양사맘',
+      likes: 41,
+      createdDate: '2024-01-15',
+      postCategory: '건강'
+    },
+    {
+      id: 9,
+      postTitle: '살찔 때 vs 뺄 때 운동법',
+      comment: '근육량을 늘릴 때는 웨이트 트레이닝 위주로, 체중을 줄일 때는 유산소와 웨이트를 병행하는 게 좋다고 생각해요!',
+      postAuthor: '운동고수',
+      likes: 76,
+      createdDate: '2024-01-14',
+      postCategory: '운동'
+    },
+    {
+      id: 10,
+      postTitle: '식단 일기 쓰는 방법',
+      comment: '저는 사진으로 찍어서 기록해요. 나중에 돌아보기도 쉽고, 칼로리 계산할 때도 편해요. 앱 사용하시는 것도 좋을 것 같아요!',
+      postAuthor: '식단왕',
+      likes: 35,
+      createdDate: '2024-01-13',
+      postCategory: '다이어트'
+    }
+  ];
+
+  // 게시글 페이징
+  const postsPerPage = 10;
+  const totalPostPages = Math.ceil(userPosts.length / postsPerPage);
+  const startPostIndex = (currentPostPage - 1) * postsPerPage;
+  const currentPosts = userPosts.slice(startPostIndex, startPostIndex + postsPerPage);
+
+  // 댓글 페이징
+  const commentsPerPage = 10;
+  const totalCommentPages = Math.ceil(userComments.length / commentsPerPage);
+  const startCommentIndex = (currentCommentPage - 1) * commentsPerPage;
+  const currentComments = userComments.slice(startCommentIndex, startCommentIndex + commentsPerPage);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-4xl mx-auto p-6">
@@ -317,7 +519,7 @@ const MyPage = () => {
         </div>
 
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User size={16} />
               <span className="hidden sm:inline">프로필</span>
@@ -332,6 +534,16 @@ const MyPage = () => {
               <Bookmark size={16} />
               <span className="hidden sm:inline">북마크</span>
               <span className="sm:hidden">북마크</span>
+            </TabsTrigger>
+            <TabsTrigger value="posts" className="flex items-center gap-2">
+              <FileText size={16} />
+              <span className="hidden sm:inline">내 게시글</span>
+              <span className="sm:hidden">게시글</span>
+            </TabsTrigger>
+            <TabsTrigger value="comments" className="flex items-center gap-2">
+              <MessageSquare size={16} />
+              <span className="hidden sm:inline">내 댓글</span>
+              <span className="sm:hidden">댓글</span>
             </TabsTrigger>
           </TabsList>
 
@@ -837,6 +1049,197 @@ const MyPage = () => {
                         <PaginationNext 
                           onClick={() => setCurrentBookmarkPage(Math.min(totalBookmarkPages, currentBookmarkPage + 1))}
                           className={currentBookmarkPage === totalBookmarkPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 내가 작성한 게시글 탭 */}
+          <TabsContent value="posts">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText size={20} />
+                  내가 작성한 게시글
+                </CardTitle>
+                <p className="text-muted-foreground">
+                  총 {userPosts.length}개의 게시글을 작성했어요
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {currentPosts.length > 0 ? (
+                  <div className="space-y-4">
+                    {currentPosts.map((post) => (
+                      <Card key={post.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                        <CardContent className="p-4">
+                          <div className="flex gap-4">
+                            <div className="w-16 h-16 bg-muted rounded-lg flex-shrink-0 overflow-hidden">
+                              {post.thumbnail ? (
+                                <img 
+                                  src={post.thumbnail} 
+                                  alt={post.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-gradient-to-br from-muted to-muted-foreground/20 flex items-center justify-center">
+                                  <FileText size={20} className="text-muted-foreground" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between mb-2">
+                                <h3 className="font-medium line-clamp-1 text-foreground">{post.title}</h3>
+                                <Badge variant="secondary" className="text-xs ml-2 flex-shrink-0">{post.category}</Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{post.content}</p>
+                              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <div className="flex items-center gap-4">
+                                  <span className="flex items-center gap-1">
+                                    <Heart size={12} className="text-red-500" />
+                                    {post.likes.toLocaleString()}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Eye size={12} className="text-blue-500" />
+                                    {post.views.toLocaleString()}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <MessageCircle size={12} className="text-green-500" />
+                                    {post.comments}
+                                  </span>
+                                </div>
+                                <span>{post.createdDate}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <FileText size={48} className="mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-lg font-medium text-foreground mb-2">작성한 게시글이 없습니다</h3>
+                    <p className="text-muted-foreground">커뮤니티에서 첫 게시글을 작성해보세요!</p>
+                  </div>
+                )}
+
+                {/* 게시글 페이징 */}
+                {totalPostPages > 1 && (
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious 
+                          onClick={() => setCurrentPostPage(Math.max(1, currentPostPage - 1))}
+                          className={currentPostPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                      {Array.from({ length: totalPostPages }, (_, i) => i + 1).map((page) => (
+                        <PaginationItem key={page}>
+                          <PaginationLink
+                            onClick={() => setCurrentPostPage(page)}
+                            isActive={page === currentPostPage}
+                            className="cursor-pointer"
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ))}
+                      <PaginationItem>
+                        <PaginationNext 
+                          onClick={() => setCurrentPostPage(Math.min(totalPostPages, currentPostPage + 1))}
+                          className={currentPostPage === totalPostPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 내가 작성한 댓글 탭 */}
+          <TabsContent value="comments">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare size={20} />
+                  내가 작성한 댓글
+                </CardTitle>
+                <p className="text-muted-foreground">
+                  총 {userComments.length}개의 댓글을 작성했어요
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {currentComments.length > 0 ? (
+                  <div className="space-y-4">
+                    {currentComments.map((comment) => (
+                      <Card key={comment.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                        <CardContent className="p-4">
+                          <div className="space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="font-medium text-sm text-foreground line-clamp-1">{comment.postTitle}</h4>
+                                  <Badge variant="secondary" className="text-xs flex-shrink-0">{comment.postCategory}</Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground">by {comment.postAuthor}</p>
+                              </div>
+                            </div>
+                            
+                            <div className="bg-muted/30 rounded-lg p-3">
+                              <p className="text-sm text-foreground leading-relaxed">{comment.comment}</p>
+                            </div>
+                            
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                                <Heart size={12} className="text-red-500" />
+                                <span>{comment.likes}</span>
+                                <span className="ml-2">좋아요</span>
+                              </div>
+                              <span>{comment.createdDate}</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <MessageSquare size={48} className="mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-lg font-medium text-foreground mb-2">작성한 댓글이 없습니다</h3>
+                    <p className="text-muted-foreground">커뮤니티에서 다른 사람들과 소통해보세요!</p>
+                  </div>
+                )}
+
+                {/* 댓글 페이징 */}
+                {totalCommentPages > 1 && (
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious 
+                          onClick={() => setCurrentCommentPage(Math.max(1, currentCommentPage - 1))}
+                          className={currentCommentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                      {Array.from({ length: totalCommentPages }, (_, i) => i + 1).map((page) => (
+                        <PaginationItem key={page}>
+                          <PaginationLink
+                            onClick={() => setCurrentCommentPage(page)}
+                            isActive={page === currentCommentPage}
+                            className="cursor-pointer"
+                          >
+                            {page}
+                          </PaginationLink>
+                        </PaginationItem>
+                      ))}
+                      <PaginationItem>
+                        <PaginationNext 
+                          onClick={() => setCurrentCommentPage(Math.min(totalCommentPages, currentCommentPage + 1))}
+                          className={currentCommentPage === totalCommentPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                         />
                       </PaginationItem>
                     </PaginationContent>
