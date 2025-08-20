@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import MealCard from '@/components/meal/MealCard';
 import WaterIntakeDialog from '@/components/water/WaterIntakeDialog';
 import CalendarViewDialog from '@/components/meal/CalendarViewDialog';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Plus, 
   Check,
@@ -28,8 +29,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+interface DayMealData {
+  date: string;
+  meals: {
+    BREAKFAST: { totalKcal: number; items?: any[] };
+    LUNCH: { totalKcal: number; items?: any[] };
+    DINNER: { totalKcal: number; items?: any[] };
+    SNACK: { totalKcal: number; items?: any[] };
+  };
+  water: number;
+  weight?: number;
+  summaryTotalKcal: number;
+  meta?: {
+    updatedAt: string;
+    etag: string;
+  };
+}
+
 const MealRecord = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('myDay');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedMonth, setSelectedMonth] = useState((new Date().getMonth() + 1).toString());
@@ -40,6 +59,9 @@ const MealRecord = () => {
   const [waterDialogOpen, setWaterDialogOpen] = useState(false);
   const [waterAmount, setWaterAmount] = useState(1200);
   const [weight, setWeight] = useState(65.5);
+  const [weightLoading, setWeightLoading] = useState(false);
+  const [dayData, setDayData] = useState<DayMealData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [dailyMissions, setDailyMissions] = useState([
     { id: 1, title: '물 1L 마시기', completed: true },
     { id: 2, title: '식단 3끼 기록하기', completed: false },
@@ -48,8 +70,53 @@ const MealRecord = () => {
     { id: 5, title: '한 정거장 먼저 내리기', completed: false },
   ]);
 
+  // Fetch daily meal data
+  useEffect(() => {
+    fetchDayData();
+  }, [selectedDate]);
+
+  const fetchDayData = async () => {
+    try {
+      setLoading(true);
+      const dateStr = selectedDate.toISOString().split('T')[0];
+      
+      // TODO: Replace with actual API call
+      // const response = await fetch(`http://localhost:8080/api/meal/day?date=${dateStr}`);
+      // const data = await response.json();
+      
+      // Mock data for now
+      const mockData: DayMealData = {
+        date: dateStr,
+        meals: {
+          BREAKFAST: { totalKcal: 0, items: [] },
+          LUNCH: { totalKcal: 499, items: [{ id: '1', name: '당근라페 샌드위치', amount: '1인분 (283g)', kcal: 499 }] },
+          DINNER: { totalKcal: 0, items: [] },
+          SNACK: { totalKcal: 145, items: [{ id: '2', name: '아몬드', amount: '1줌 (28g)', kcal: 145 }] }
+        },
+        water: 1200,
+        weight: 65.4,
+        summaryTotalKcal: 644
+      };
+      
+      setDayData(mockData);
+      setWaterAmount(mockData.water);
+      if (mockData.weight) {
+        setWeight(mockData.weight);
+      }
+    } catch (error) {
+      console.error('Failed to fetch day data:', error);
+      toast({
+        title: "오류",
+        description: "데이터를 불러오는데 실패했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleMealClick = (mealId: string) => {
-    navigate(`/meal/${mealId}`);
+    navigate(`/meal-detail/${mealId}`);
   };
 
   const handleAddFoodClick = () => {
@@ -78,10 +145,70 @@ const MealRecord = () => {
     setWaterDialogOpen(true);
   };
 
-  const handleWaterSave = (amount: number) => {
-    setWaterAmount(amount);
-    // TODO: Save to API
-    console.log('Water amount saved:', amount);
+  const handleWaterSave = async (amount: number) => {
+    try {
+      const dateStr = selectedDate.toISOString().split('T')[0];
+      
+      // TODO: Replace with actual API call
+      // const response = await fetch('/api/meal/water', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ date: dateStr, amount })
+      // });
+      
+      setWaterAmount(amount);
+      
+      toast({
+        title: "저장 완료",
+        description: "물 섭취량이 저장되었습니다.",
+      });
+    } catch (error) {
+      console.error('Failed to save water:', error);
+      toast({
+        title: "오류",
+        description: "물 섭취량 저장에 실패했습니다.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleWeightSave = async () => {
+    if (!weight || weight <= 0) {
+      toast({
+        title: "오류",
+        description: "올바른 체중을 입력해주세요",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setWeightLoading(true);
+      
+      // TODO: Replace with actual API call
+      // const response = await fetch('/api/meal/weight', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ weight })
+      // });
+      
+      toast({
+        title: "저장하였습니다",
+        description: `체중 ${weight}kg이 저장되었습니다.`,
+      });
+      
+      // Optionally refetch day data
+      // await fetchDayData();
+    } catch (error) {
+      console.error('Failed to save weight:', error);
+      toast({
+        title: "오류",
+        description: "저장에 실패했어요. 잠시 후 다시 시도해주세요.",
+        variant: "destructive",
+      });
+    } finally {
+      setWeightLoading(false);
+    }
   };
 
   const handleMissionToggle = (missionId: number) => {
@@ -94,10 +221,43 @@ const MealRecord = () => {
     );
   };
 
-  const handleSkipMeal = (mealType: string) => {
-    console.log('Skipped meal:', mealType);
-    setMealDialogOpen(false);
-    // TODO: Save skip status to API
+  const handleSkipMeal = async (mealType: string) => {
+    try {
+      const dateStr = selectedDate.toISOString().split('T')[0];
+      
+      // TODO: Replace with actual API call
+      // const response = await fetch('http://localhost:8080/api/meal/log', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({
+      //     foodId: 1,
+      //     mealLogDate: dateStr,
+      //     intakeAmount: 0,
+      //     intakeKcal: 0.0,
+      //     carbohydrate: 0.0,
+      //     protein: 0.0,
+      //     fat: 0.0,
+      //     mealType: mealType.toUpperCase()
+      //   })
+      // });
+      
+      setMealDialogOpen(false);
+      
+      toast({
+        title: "등록 완료",
+        description: "안먹었어요가 등록되었습니다.",
+      });
+      
+      // Refetch day data
+      await fetchDayData();
+    } catch (error) {
+      console.error('Failed to skip meal:', error);
+      toast({
+        title: "오류", 
+        description: "등록에 실패했습니다.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleMealCardClick = (mealId: string, status: string) => {
@@ -125,62 +285,50 @@ const MealRecord = () => {
 
   const dateRange = generateDateRange();
 
-  // 오늘의 영양소 데이터
-  const todayStats = {
-    calories: { current: 644, target: 1144 },
+  // Calculate today's stats from dayData
+  const todayStats = dayData ? {
+    calories: { current: dayData.summaryTotalKcal, target: 1800 },
     carbs: { percentage: 46, current: 78, target: 163 },
     protein: { percentage: 14, current: 23, target: 51 },
     fat: { percentage: 40, current: 30, target: 32 }
+  } : {
+    calories: { current: 0, target: 1800 },
+    carbs: { percentage: 0, current: 0, target: 163 },
+    protein: { percentage: 0, current: 0, target: 51 },
+    fat: { percentage: 0, current: 0, target: 32 }
   };
 
-  // 식사별 데이터
-  const mealCards = [
+  // 식사별 데이터 - API 데이터 기반
+  const mealCards = dayData ? [
     { 
       id: 'breakfast', 
       name: '아침', 
       icon: Sun, 
-      totalKcal: 0,
-      foods: []
+      totalKcal: dayData.meals.BREAKFAST.totalKcal,
+      foods: dayData.meals.BREAKFAST.items || []
     },
     { 
       id: 'lunch', 
       name: '점심', 
       icon: Mountain, 
-      totalKcal: 499,
-      foods: [
-        {
-          id: '1',
-          name: '당근라페 샌드위치',
-          amount: '1인분 (283g)',
-          kcal: 499,
-          carbs: 59,
-          protein: 21,
-          fat: 23
-        }
-      ]
+      totalKcal: dayData.meals.LUNCH.totalKcal,
+      foods: dayData.meals.LUNCH.items || []
     },
     { 
       id: 'dinner', 
       name: '저녁', 
       icon: Moon, 
-      totalKcal: 0,
-      foods: []
+      totalKcal: dayData.meals.DINNER.totalKcal,
+      foods: dayData.meals.DINNER.items || []
     },
     { 
       id: 'snack', 
       name: '간식', 
       icon: Apple, 
-      totalKcal: 145,
-      foods: [
-        {
-          id: '2',
-          name: '아몬드',
-          amount: '1줌 (28g)',
-          kcal: 145
-        }
-      ]
+      totalKcal: dayData.meals.SNACK.totalKcal,
+      foods: dayData.meals.SNACK.items || []
     }
-  ];
+  ] : [];
 
   const caloriePercentage = (todayStats.calories.current / todayStats.calories.target) * 100;
 
@@ -382,19 +530,25 @@ const MealRecord = () => {
                       className="w-20 text-center text-lg font-semibold border-primary/20 focus:border-primary"
                       step="0.1"
                       min="0"
-                      max="200"
+                      max="500"
+                      placeholder="65.5"
+                      aria-label="오늘의 체중"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleWeightSave();
+                        }
+                      }}
                     />
                     <span className="text-sm font-medium text-foreground">kg</span>
                   </div>
                   <Button 
                     size="sm" 
                     className="bg-primary hover:bg-primary/90 text-primary-foreground px-4"
-                    onClick={() => {
-                      // TODO: Save weight to API
-                      console.log('Weight saved:', weight);
-                    }}
+                    onClick={handleWeightSave}
+                    disabled={weightLoading}
+                    aria-label="저장"
                   >
-                    저장
+                    {weightLoading ? '저장중...' : '저장'}
                   </Button>
                 </div>
               </div>
@@ -402,24 +556,74 @@ const MealRecord = () => {
           </Card>
 
           {/* 식사별 카드 - 2x2 그리드 */}
-          <div className="grid grid-cols-2 gap-4">
-            {mealCards.map((meal) => (
-              <MealCard
-                key={meal.id}
-                mealType={meal.id}
-                title={meal.name}
-                icon={meal.icon}
-                totalKcal={meal.totalKcal}
-                foods={meal.foods}
-                isCompleted={meal.foods.length > 0}
-                isExpanded={expandedMeal === meal.id}
-                onToggleExpand={() => handleToggleExpand(meal.id)}
-                onAddFood={handleAddFood}
-                onEditFood={handleEditFood}
-                onDeleteFood={handleDeleteFood}
-              />
-            ))}
-          </div>
+          {loading ? (
+            <div className="grid grid-cols-2 gap-4">
+              {[1,2,3,4].map((i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="p-4 h-32">
+                    <div className="bg-muted rounded h-full"></div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              {mealCards.map((meal) => (
+                <Card
+                  key={meal.id}
+                  className="cursor-pointer hover:shadow-md transition-shadow border border-border/50"
+                  onClick={() => handleMealCardClick(meal.id, meal.foods.length > 0 ? 'filled' : 'empty')}
+                >
+                  <CardContent className="p-4 text-center">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="text-primary">
+                        <meal.icon size={24} />
+                      </div>
+                      {meal.foods.length > 0 && (
+                        <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                          <Check size={12} className="text-white" />
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="text-foreground font-semibold text-sm mb-2">{meal.name}</div>
+                    
+                    {meal.foods.length > 0 ? (
+                      <div className="text-foreground font-bold text-lg">{meal.totalKcal} kcal</div>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-muted-foreground text-xs mb-3">아직 기록이 없어요</p>
+                        <div className="space-y-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full text-xs py-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleAddFood(meal.id);
+                            }}
+                          >
+                            음식 등록
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="w-full text-xs py-1 text-muted-foreground"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSkipMeal(meal.id);
+                            }}
+                          >
+                            안먹었어요
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
 
           {/* 물 섭취 카드 (전체 폭) */}
           <div className="w-full">

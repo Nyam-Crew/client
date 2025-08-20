@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Home from "./pages/Home";
 import MealRecord from "./pages/MealRecord";
+import MealDetail from "./pages/MealDetail";
 import RecordCalendar from "./pages/RecordCalendar";
 import FoodSearch from "./pages/FoodSearch";
 import Challenge from "./pages/Challenge";
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/" element={<Home />} />
           <Route path="/meal" element={<MealRecord />} />
           <Route path="/meal-record" element={<MealRecord />} />
+          <Route path="/meal-detail/:mealType" element={<MealDetail />} />
           <Route path="/record/calendar" element={<RecordCalendar />} />
           <Route path="/food-search" element={<FoodSearch />} />
           <Route path="/challenge" element={<Challenge />} />
