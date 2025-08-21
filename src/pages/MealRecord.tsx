@@ -530,7 +530,7 @@ const MealRecord = () => {
               <div className="mb-6">
                 <div className="text-5xl font-bold text-primary mb-2">{todayStats.calories.current}</div>
                 <div className="text-lg text-muted-foreground">/ {todayStats.calories.target}kcal</div>
-                <div className="text-sm text-muted-foreground mt-1">오늘 섭취한 칼로리</div>
+                <div className="text-sm text-muted-foreground mt-1">오늘 섭취한 칼로리 입니다!!</div>
               </div>
               
               {/* 진행바 */}
