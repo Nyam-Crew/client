@@ -23,7 +23,10 @@ import {
   Utensils,
   Calendar,
   Target,
-  CheckCircle
+  CheckCircle,
+  User,
+  Activity,
+  Zap
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -65,12 +68,54 @@ const MealRecord = () => {
   const [dailyMissions, setDailyMissions] = useState<any[]>([]);
   const [missionsLoading, setMissionsLoading] = useState(false);
 
-  // Fetch daily meal data
+  // 사용자 정보 (실제로는 API에서 가져올 데이터)
+  const userInfo = {
+    name: "김건강",
+    height: 170, // cm
+    weight: 65.5, // kg
+    age: 25,
+    gender: "male", // "male" | "female"
+    activityLevel: 1.375 // 1.2(sedentary) ~ 1.9(very active)
+  };
+
+  // BMI 계산
+  const calculateBMI = (weight: number, height: number) => {
+    const heightInM = height / 100;
+    return weight / (heightInM * heightInM);
+  };
+
+  // BMR 계산 (Harris-Benedict 공식)
+  const calculateBMR = (weight: number, height: number, age: number, gender: string) => {
+    if (gender === "male") {
+      return 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
+    } else {
+      return 447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age);
+    }
+  };
+
+  // TDEE 계산
+  const calculateTDEE = (bmr: number, activityLevel: number) => {
+    return bmr * activityLevel;
+  };
+
+  const bmi = calculateBMI(userInfo.weight, userInfo.height);
+  const bmr = calculateBMR(userInfo.weight, userInfo.height, userInfo.age, userInfo.gender);
+  const tdee = calculateTDEE(bmr, userInfo.activityLevel);
+
+  // BMI 분류
+  const getBMICategory = (bmi: number) => {
+    if (bmi < 18.5) return { text: "저체중", color: "text-blue-600" };
+    if (bmi < 23) return { text: "정상", color: "text-green-600" };
+    if (bmi < 25) return { text: "과체중", color: "text-yellow-600" };
+    return { text: "비만", color: "text-red-600" };
+  };
+
+  const bmiCategory = getBMICategory(bmi);
+
   useEffect(() => {
     fetchDayData();
   }, [selectedDate]);
 
-  // Fetch daily missions when tab is active
   useEffect(() => {
     if (activeTab === 'dailyMissions') {
       fetchDailyMissions();
@@ -82,11 +127,6 @@ const MealRecord = () => {
       setLoading(true);
       const dateStr = selectedDate.toISOString().split('T')[0];
       
-      // TODO: Replace with actual API call
-      // const response = await fetch(`http://localhost:8080/api/meal/day?date=${dateStr}`);
-      // const data = await response.json();
-      
-      // Mock data for now
       const mockData: DayMealData = {
         date: dateStr,
         meals: {
@@ -135,12 +175,10 @@ const MealRecord = () => {
 
   const handleEditFood = (foodId: string) => {
     console.log('Edit food:', foodId);
-    // TODO: Implement edit functionality
   };
 
   const handleDeleteFood = (foodId: string) => {
     console.log('Delete food:', foodId);
-    // TODO: Implement delete functionality with confirmation
   };
 
   const handleWaterClick = () => {
@@ -150,13 +188,6 @@ const MealRecord = () => {
   const handleWaterSave = async (amount: number) => {
     try {
       const dateStr = selectedDate.toISOString().split('T')[0];
-      
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/meal/water', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ date: dateStr, amount })
-      // });
       
       setWaterAmount(amount);
       
@@ -187,20 +218,11 @@ const MealRecord = () => {
     try {
       setWeightLoading(true);
       
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/meal/weight', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ weight })
-      // });
-      
       toast({
         title: "저장하였습니다",
         description: `체중 ${weight}kg이 저장되었습니다.`,
       });
       
-      // Optionally refetch day data
-      // await fetchDayData();
     } catch (error) {
       console.error('Failed to save weight:', error);
       toast({
@@ -217,11 +239,6 @@ const MealRecord = () => {
     try {
       setMissionsLoading(true);
       
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/missions/today');
-      // const data = await response.json();
-      
-      // Mock data for now
       const mockMissions = [
         {
           "dailyMissionId": 1,
@@ -290,11 +307,6 @@ const MealRecord = () => {
 
   const handleMissionComplete = async (dailyMissionId: number) => {
     try {
-      // TODO: Replace with actual API call
-      // const response = await fetch(`/api/missions/${dailyMissionId}/complete`, {
-      //   method: 'POST'
-      // });
-      
       setDailyMissions(prev => 
         prev.map(mission => 
           mission.dailyMissionId === dailyMissionId 
@@ -321,22 +333,6 @@ const MealRecord = () => {
     try {
       const dateStr = selectedDate.toISOString().split('T')[0];
       
-      // TODO: Replace with actual API call
-      // const response = await fetch('http://localhost:8080/api/meal/log', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     foodId: 1,
-      //     mealLogDate: dateStr,
-      //     intakeAmount: 0,
-      //     intakeKcal: 0.0,
-      //     carbohydrate: 0.0,
-      //     protein: 0.0,
-      //     fat: 0.0,
-      //     mealType: mealType.toUpperCase()
-      //   })
-      // });
-      
       setMealDialogOpen(false);
       
       toast({
@@ -344,7 +340,6 @@ const MealRecord = () => {
         description: "안먹었어요가 등록되었습니다.",
       });
       
-      // Refetch day data
       await fetchDayData();
     } catch (error) {
       console.error('Failed to skip meal:', error);
@@ -358,7 +353,6 @@ const MealRecord = () => {
 
   const handleMealCardClick = (mealId: string, status: string) => {
     if (status === 'empty') {
-      // Do nothing for empty meals - only buttons should work
       return;
     } else {
       handleMealClick(mealId);
@@ -369,10 +363,8 @@ const MealRecord = () => {
     return foods && foods.length > 0;
   };
 
-  // 요일 배열
   const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
   
-  // 날짜 배열 생성 (오늘 기준 ±3일)
   const generateDateRange = () => {
     const dates = [];
     for (let i = -3; i <= 3; i++) {
@@ -385,20 +377,18 @@ const MealRecord = () => {
 
   const dateRange = generateDateRange();
 
-  // Calculate today's stats from dayData
   const todayStats = dayData ? {
-    calories: { current: dayData.summaryTotalKcal, target: 1800 },
+    calories: { current: dayData.summaryTotalKcal, target: Math.round(tdee), remaining: Math.round(tdee - dayData.summaryTotalKcal) },
     carbs: { percentage: 46, current: 78, target: 163 },
     protein: { percentage: 14, current: 23, target: 51 },
     fat: { percentage: 40, current: 30, target: 32 }
   } : {
-    calories: { current: 0, target: 1800 },
+    calories: { current: 0, target: Math.round(tdee), remaining: Math.round(tdee) },
     carbs: { percentage: 0, current: 0, target: 163 },
     protein: { percentage: 0, current: 0, target: 51 },
     fat: { percentage: 0, current: 0, target: 32 }
   };
 
-  // 식사별 데이터 - API 데이터 기반
   const mealCards = dayData ? [
     { 
       id: 'breakfast', 
@@ -521,92 +511,166 @@ const MealRecord = () => {
           </TabsList>
         </div>
 
-        {/* 나의 하루 탭 - 리디자인된 깔끔한 레이아웃 */}
+        {/* 나의 하루 탭 - 개선된 레이아웃 */}
         <TabsContent value="myDay" className="px-4 pt-6 pb-8 min-h-screen" style={{ backgroundColor: '#fffff5' }}>
           
-          {/* 히어로 칼로리 카드 */}
-          <Card className="mb-6 shadow-sm border-0 bg-white">
-            <CardContent className="p-8 text-center">
-              <div className="mb-6">
-                <div className="text-5xl font-bold text-primary mb-2">{todayStats.calories.current}</div>
-                <div className="text-lg text-muted-foreground">/ {todayStats.calories.target}kcal</div>
-                <div className="text-sm text-muted-foreground mt-1">오늘 섭취한 칼로리 입니다!!</div>
-              </div>
-              
-              {/* 진행바 */}
-              <div className="mb-4">
-                <Progress 
-                  value={caloriePercentage} 
-                  className="w-full h-2"
-                />
-              </div>
-              
-              {/* 남은 칼로리 배지 */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-success/10 rounded-full">
-                <div className="w-2 h-2 bg-success rounded-full"></div>
-                <span className="text-success font-semibold text-sm">
-                  {todayStats.calories.target - todayStats.calories.current}kcal 더 먹을 수 있어요
-                </span>
+          {/* 인사말 카드 */}
+          <Card className="mb-6 shadow-sm border-0" style={{ backgroundColor: '#c2d595' }}>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3">
+                <div className="text-2xl">👋</div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-800">안녕하세요, {userInfo.name}님!</h2>
+                  <p className="text-sm text-gray-600">오늘도 건강한 하루 시작해볼까요?</p>
+                </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* 기본 정보 카드 (BMI, BMR, TDEE) */}
+          <Card className="mb-6 shadow-sm border-0 bg-white">
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                <User size={20} className="text-primary" />
+                건강 정보
+              </h3>
+              
+              <div className="grid grid-cols-1 gap-4">
+                {/* BMI */}
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <div className="text-sm text-muted-foreground">BMI (체질량지수)</div>
+                    <div className="text-lg font-bold">{bmi.toFixed(1)}</div>
+                  </div>
+                  <div className={`text-sm font-medium ${bmiCategory.color}`}>
+                    {bmiCategory.text}
+                  </div>
+                </div>
+
+                {/* BMR */}
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <div className="text-sm text-muted-foreground">BMR (기초대사량)</div>
+                    <div className="text-lg font-bold">{Math.round(bmr)} kcal</div>
+                  </div>
+                  <Activity size={20} className="text-blue-500" />
+                </div>
+
+                {/* TDEE */}
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <div className="text-sm text-muted-foreground">TDEE (하루 총 소비량)</div>
+                    <div className="text-lg font-bold">{Math.round(tdee)} kcal</div>
+                  </div>
+                  <Zap size={20} className="text-orange-500" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 칼로리 현황 카드 */}
+          <Card className="mb-6 shadow-sm border-0 bg-white">
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-6 text-center">오늘의 칼로리</h3>
+              
+              <div className="text-center mb-6">
+                <div className="text-4xl font-bold text-primary mb-2">{todayStats.calories.current}</div>
+                <div className="text-lg text-muted-foreground">섭취한 칼로리</div>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">목표 칼로리</span>
+                  <span className="font-semibold">{todayStats.calories.target} kcal</span>
+                </div>
+                
+                <Progress 
+                  value={Math.min(caloriePercentage, 100)} 
+                  className="w-full h-3"
+                />
+                
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">더 먹을 수 있는 칼로리</span>
+                  <span className={`font-bold ${todayStats.calories.remaining > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {Math.abs(todayStats.calories.remaining)} kcal
+                  </span>
+                </div>
+              </div>
+              
+              {todayStats.calories.remaining > 0 && (
+                <div className="mt-4 p-3 bg-green-50 rounded-lg text-center">
+                  <span className="text-green-700 font-medium text-sm">
+                    {todayStats.calories.remaining}kcal 더 드셔도 괜찮아요! 💪
+                  </span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
           
-          {/* 영양소 비율 카드 */}
+          {/* 영양소 현황 카드 */}
           <Card className="shadow-sm border-0 bg-white">
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold text-foreground mb-6 text-center">영양소 현황</h3>
               
-              {/* 영양소별 정보 */}
-              <div className="space-y-4">
+              <div className="space-y-5">
                 {/* 탄수화물 */}
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-warning rounded-full"></div>
+                      <div className="w-3 h-3 bg-orange-400 rounded-full"></div>
                       <span className="text-sm font-medium text-foreground">탄수화물</span>
                     </div>
                     <span className="text-sm font-bold text-foreground">
-                      {todayStats.carbs.current}/{todayStats.carbs.target}g
+                      {todayStats.carbs.current}g / {todayStats.carbs.target}g
                     </span>
                   </div>
                   <Progress 
                     value={todayStats.carbs.percentage} 
                     className="w-full h-2"
                   />
+                  <div className="text-xs text-muted-foreground text-right">
+                    {todayStats.carbs.percentage}%
+                  </div>
                 </div>
                 
                 {/* 단백질 */}
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-destructive rounded-full"></div>
+                      <div className="w-3 h-3 bg-red-400 rounded-full"></div>
                       <span className="text-sm font-medium text-foreground">단백질</span>
                     </div>
                     <span className="text-sm font-bold text-foreground">
-                      {todayStats.protein.current}/{todayStats.protein.target}g
+                      {todayStats.protein.current}g / {todayStats.protein.target}g
                     </span>
                   </div>
                   <Progress 
                     value={todayStats.protein.percentage} 
                     className="w-full h-2"
                   />
+                  <div className="text-xs text-muted-foreground text-right">
+                    {todayStats.protein.percentage}%
+                  </div>
                 </div>
                 
                 {/* 지방 */}
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-primary rounded-full"></div>
+                      <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
                       <span className="text-sm font-medium text-foreground">지방</span>
                     </div>
                     <span className="text-sm font-bold text-foreground">
-                      {todayStats.fat.current}/{todayStats.fat.target}g
+                      {todayStats.fat.current}g / {todayStats.fat.target}g
                     </span>
                   </div>
                   <Progress 
                     value={todayStats.fat.percentage} 
                     className="w-full h-2"
                   />
+                  <div className="text-xs text-muted-foreground text-right">
+                    {todayStats.fat.percentage}%
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -817,7 +881,6 @@ const MealRecord = () => {
             </div>
           )}
 
-          {/* 미션 완료 현황 */}
           <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
             <CardContent className="p-6 text-center">
               <Target className="mx-auto mb-3 text-green-600" size={32} />
