@@ -223,9 +223,7 @@ const RecordCalendar = () => {
                         {/* 우상단: 데일리 미션 배지 */}
                         {dayData?.missionsCompleted && (
                           <div className="absolute top-2 right-2">
-                            <Badge className="rounded-full px-2 py-0.5 bg-green-100 text-green-700 text-[11px] font-medium border-0">
-                              ✓ 도장
-                            </Badge>
+                            <span className="text-green-600 font-bold">✅</span>
                           </div>
                         )}
                         

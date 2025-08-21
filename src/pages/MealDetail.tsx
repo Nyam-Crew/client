@@ -351,7 +351,7 @@ const MealDetail = () => {
   };
 
   const handleComplete = () => {
-    navigate('/meal-record');
+    navigate('/meal-record?tab=myDay');
   };
 
   const calculateNutrients = () => {
@@ -432,7 +432,7 @@ const MealDetail = () => {
         </div>
       </div>
 
-      <div className="flex-1 px-4 py-6 space-y-6">
+      <div className="flex-1 px-4 py-6 space-y-6" style={{ paddingBottom: '25vh' }}>
         {/* Added Foods Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -469,7 +469,7 @@ const MealDetail = () => {
                             onClick={() => handleEditFood(food)}
                             className="p-2"
                           >
-                            <Edit3 size={16} />
+                            수정
                           </Button>
                           <Button
                             variant="outline"
@@ -477,7 +477,7 @@ const MealDetail = () => {
                             onClick={() => handleDeleteFood(food.mealLogId)}
                             className="p-2 text-red-600 hover:text-red-700"
                           >
-                            <X size={16} />
+                            삭제
                           </Button>
                         </div>
                       </div>
@@ -503,14 +503,49 @@ const MealDetail = () => {
         
       </div>
 
-      {/* Fixed bottom section */}
-      <div className="sticky bottom-0 bg-background border-t p-4 space-y-4">
-        {/* Total Calories Summary */}
+      {/* Fixed bottom section - 25-30% from bottom */}
+      <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 space-y-4" style={{ height: '30vh' }}>
+        {/* Total Calories Summary with Macronutrients */}
         {mealData && mealData.foods.length > 0 && (
           <div className="bg-muted p-4 rounded-lg">
-            <div className="text-center">
+            <div className="text-center mb-4">
               <div className="text-2xl font-bold text-foreground">
                 총 {mealData.totalKcal}kcal
+              </div>
+            </div>
+            
+            {/* Macronutrient Bar */}
+            <div className="w-full h-3 bg-gray-200 rounded-full overflow-hidden mb-3 flex">
+              <div 
+                className="bg-orange-400 h-full"
+                style={{ width: `${carbsPercentage}%` }}
+              ></div>
+              <div 
+                className="bg-blue-500 h-full"
+                style={{ width: `${proteinPercentage}%` }}
+              ></div>
+              <div 
+                className="bg-green-500 h-full"
+                style={{ width: `${fatPercentage}%` }}
+              ></div>
+            </div>
+            
+            {/* Macronutrient Details */}
+            <div className="flex justify-between text-sm">
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-orange-400 rounded-full"></div>
+                <span className="text-muted-foreground">탄수화물</span>
+                <span className="font-bold text-foreground">{nutrients.carbs}g</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <span className="text-muted-foreground">단백질</span>
+                <span className="font-bold text-foreground">{nutrients.protein}g</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                <span className="text-muted-foreground">지방</span>
+                <span className="font-bold text-foreground">{nutrients.fat}g</span>
               </div>
             </div>
           </div>

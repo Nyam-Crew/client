@@ -358,8 +358,8 @@ const MealRecord = () => {
 
   const handleMealCardClick = (mealId: string, status: string) => {
     if (status === 'empty') {
-      setSelectedMeal(mealId);
-      setMealDialogOpen(true);
+      // Do nothing for empty meals - only buttons should work
+      return;
     } else {
       handleMealClick(mealId);
     }
