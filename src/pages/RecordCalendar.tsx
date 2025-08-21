@@ -6,6 +6,21 @@ import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
 
+interface CalendarMonthResponse {
+  year: number;
+  month: number;
+  days: number;
+  items: CalendarDayItem[];
+}
+
+interface CalendarDayItem {
+  date: string;
+  kcal: number | null;
+  weight: number | null;
+  water: number | null;
+  achieved: boolean;
+}
+
 interface DayData {
   calories: number;
   weight?: number;
@@ -18,6 +33,24 @@ const RecordCalendar = () => {
   const [searchParams] = useSearchParams();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [calendarData, setCalendarData] = useState<CalendarMonthResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // API에서 월별 캘린더 데이터 가져오기
+  const fetchCalendarData = async (year: number, month: number) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/calendar/month?year=${year}&month=${month}`);
+      if (response.ok) {
+        const data = await response.json();
+        setCalendarData(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch calendar data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // URL에서 선택된 날짜 파라미터 읽기
   useEffect(() => {
@@ -30,6 +63,11 @@ const RecordCalendar = () => {
       }
     }
   }, [searchParams]);
+
+  // 현재 월이 변경될 때마다 API 호출
+  useEffect(() => {
+    fetchCalendarData(currentMonth.getFullYear(), currentMonth.getMonth() + 1);
+  }, [currentMonth]);
 
   // 샘플 데이터 - 각 날짜별 기록 (2025년으로 업데이트)
   const sampleData: Record<string, DayData> = {
@@ -53,7 +91,24 @@ const RecordCalendar = () => {
   };
 
   const getDayData = (date: Date): DayData | null => {
-    return sampleData[formatDateKey(date)] || null;
+    if (!calendarData) return null;
+    
+    const dateKey = formatDateKey(date);
+    const dayItem = calendarData.items.find(item => item.date === dateKey);
+    
+    if (!dayItem) return null;
+    
+    return {
+      calories: dayItem.kcal || 0,
+      weight: dayItem.weight || undefined,
+      water: dayItem.water || undefined,
+      missionsCompleted: dayItem.achieved
+    };
+  };
+
+  const formatWaterDisplay = (waterMl: number | null | undefined): string => {
+    if (!waterMl) return '-';
+    return `${(waterMl / 1000).toFixed(1)}L`;
   };
 
   const handlePrevMonth = () => {
@@ -113,9 +168,9 @@ const RecordCalendar = () => {
       </div>
 
       {/* 캘린더 영역 */}
-      <div className="px-4 pt-6">
-        <Card className="shadow-lg border-0 bg-white">
-          <CardContent className="p-6">
+      <div className="px-4 pt-6 pb-6 flex-1">
+        <Card className="shadow-lg border-0 bg-white h-full">
+          <CardContent className="p-6 h-full flex flex-col">
             {/* 월 네비게이션 */}
             <div className="flex items-center justify-between mb-6">
               <Button
@@ -123,33 +178,33 @@ const RecordCalendar = () => {
                 size="sm"
                 onClick={handlePrevMonth}
                 className="p-2 hover:bg-brand-green/10"
+                disabled={loading}
               >
                 <ChevronLeft size={20} />
               </Button>
-              
-              <h2 className="text-xl font-semibold text-foreground">
-                {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월
-              </h2>
               
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleNextMonth}
                 className="p-2 hover:bg-brand-green/10"
+                disabled={loading}
               >
                 <ChevronRight size={20} />
               </Button>
             </div>
 
             {/* 캘린더 */}
-            <div className="calendar-container">
+            <div className="calendar-container w-full">
               <Calendar
                 mode="single"
                 selected={selectedDate}
                 onSelect={(date) => date && setSelectedDate(date)}
                 month={currentMonth}
-                onMonthChange={setCurrentMonth}
-                className="w-full"
+                onMonthChange={(newMonth) => {
+                  setCurrentMonth(newMonth);
+                }}
+                className="w-full h-full"
                 components={{
                   DayContent: ({ date }) => {
                     const dayData = getDayData(date);
@@ -185,7 +240,7 @@ const RecordCalendar = () => {
                             {dayData?.weight ? `${dayData.weight}kg` : '-'}
                           </div>
                           <div>
-                            {dayData?.water ? `${dayData.water}ml` : '-'}
+                            {dayData?.water ? formatWaterDisplay(dayData.water) : '-'}
                           </div>
                         </div>
                       </div>
@@ -193,16 +248,18 @@ const RecordCalendar = () => {
                   }
                 }}
                 classNames={{
-                  caption_label: "hidden", // 영문 월 표기 숨김
-                  day: "min-h-[120px] w-full p-0 text-sm relative hover:shadow-sm transition-all rounded-md border border-gray-200",
+                  caption_label: "hidden",
+                  caption: "hidden",
+                  nav: "hidden",
+                  day: "min-h-[140px] w-full p-0 text-sm relative hover:shadow-sm transition-all rounded-md border border-gray-200",
                   day_today: "border-2 border-gray-400",
                   day_selected: "bg-blue-500 text-white hover:bg-blue-600",
                   day_outside: "opacity-50",
-                  head_cell: "text-muted-foreground font-medium text-sm w-full text-center py-2",
+                  head_cell: "text-muted-foreground font-medium text-sm w-full text-center py-3",
                   cell: "p-1 w-full",
                   table: "w-full border-collapse border-spacing-0",
                   head_row: "flex w-full",
-                  row: "flex w-full mt-1"
+                  row: "flex w-full mt-2"
                 }}
               />
             </div>
@@ -246,7 +303,7 @@ const RecordCalendar = () => {
                     <div className="flex justify-between items-center">
                       <span className="text-foreground">물 섭취량</span>
                       <Badge variant="outline" className="bg-accent/10 text-foreground border-accent/20">
-                        {getDayData(selectedDate)!.water}ml
+                        {formatWaterDisplay(getDayData(selectedDate)!.water)}
                       </Badge>
                     </div>
                   )}
