@@ -365,6 +365,10 @@ const MealRecord = () => {
     }
   };
 
+  const hasFoodItems = (foods: any[]) => {
+    return foods && foods.length > 0;
+  };
+
   // 요일 배열
   const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
   
@@ -688,7 +692,7 @@ const MealRecord = () => {
                     
                     <div className="text-foreground font-semibold text-sm mb-2">{meal.name}</div>
                     
-                    {meal.foods.length > 0 ? (
+                     {meal.foods.length > 0 ? (
                       <div className="text-foreground font-bold text-lg">{meal.totalKcal} kcal</div>
                     ) : (
                       <div className="space-y-2">

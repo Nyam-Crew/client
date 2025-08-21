@@ -186,7 +186,7 @@ const FoodSearch = () => {
       });
       
       setDetailDialogOpen(false);
-      navigate('/meal-record');
+      navigate(`/meal-detail/${mealType}`);
     } catch (error) {
       toast({
         title: "기록 실패",
