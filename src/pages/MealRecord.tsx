@@ -62,18 +62,20 @@ const MealRecord = () => {
   const [weightLoading, setWeightLoading] = useState(false);
   const [dayData, setDayData] = useState<DayMealData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [dailyMissions, setDailyMissions] = useState([
-    { id: 1, title: '물 1L 마시기', completed: true },
-    { id: 2, title: '식단 3끼 기록하기', completed: false },
-    { id: 3, title: '오천보 이상 걷기', completed: false },
-    { id: 4, title: '계단으로 올라가기', completed: true },
-    { id: 5, title: '한 정거장 먼저 내리기', completed: false },
-  ]);
+  const [dailyMissions, setDailyMissions] = useState<any[]>([]);
+  const [missionsLoading, setMissionsLoading] = useState(false);
 
   // Fetch daily meal data
   useEffect(() => {
     fetchDayData();
   }, [selectedDate]);
+
+  // Fetch daily missions when tab is active
+  useEffect(() => {
+    if (activeTab === 'dailyMissions') {
+      fetchDailyMissions();
+    }
+  }, [activeTab]);
 
   const fetchDayData = async () => {
     try {
@@ -211,14 +213,108 @@ const MealRecord = () => {
     }
   };
 
-  const handleMissionToggle = (missionId: number) => {
-    setDailyMissions(prev => 
-      prev.map(mission => 
-        mission.id === missionId 
-          ? { ...mission, completed: !mission.completed }
-          : mission
-      )
-    );
+  const fetchDailyMissions = async () => {
+    try {
+      setMissionsLoading(true);
+      
+      // TODO: Replace with actual API call
+      // const response = await fetch('/api/missions/today');
+      // const data = await response.json();
+      
+      // Mock data for now
+      const mockMissions = [
+        {
+          "dailyMissionId": 1,
+          "missionId": 9,
+          "category": "ACTIVITY",
+          "title": "요가 15분",
+          "type": "MANUAL",
+          "missionDate": "2025-08-21",
+          "completed": false,
+          "completedBy": "NONE"
+        },
+        {
+          "dailyMissionId": 2,
+          "missionId": 6,
+          "category": "ACTIVITY",
+          "title": "푸쉬업 20개",
+          "type": "MANUAL",
+          "missionDate": "2025-08-21",
+          "completed": false,
+          "completedBy": "NONE"
+        },
+        {
+          "dailyMissionId": 3,
+          "missionId": 5,
+          "category": "ACTIVITY",
+          "title": "계단 오르내리기 10분",
+          "type": "MANUAL",
+          "missionDate": "2025-08-21",
+          "completed": true,
+          "completedBy": "NONE"
+        },
+        {
+          "dailyMissionId": 4,
+          "missionId": 8,
+          "category": "ACTIVITY",
+          "title": "스트레칭 5분",
+          "type": "MANUAL",
+          "missionDate": "2025-08-21",
+          "completed": false,
+          "completedBy": "NONE"
+        },
+        {
+          "dailyMissionId": 5,
+          "missionId": 4,
+          "category": "ACTIVITY",
+          "title": "자전거 타기 20분",
+          "type": "MANUAL",
+          "missionDate": "2025-08-21",
+          "completed": false,
+          "completedBy": "NONE"
+        }
+      ];
+      
+      setDailyMissions(mockMissions);
+    } catch (error) {
+      console.error('Failed to fetch daily missions:', error);
+      toast({
+        title: "오류",
+        description: "데일리 미션을 불러오는데 실패했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setMissionsLoading(false);
+    }
+  };
+
+  const handleMissionComplete = async (dailyMissionId: number) => {
+    try {
+      // TODO: Replace with actual API call
+      // const response = await fetch(`/api/missions/${dailyMissionId}/complete`, {
+      //   method: 'POST'
+      // });
+      
+      setDailyMissions(prev => 
+        prev.map(mission => 
+          mission.dailyMissionId === dailyMissionId 
+            ? { ...mission, completed: true }
+            : mission
+        )
+      );
+      
+      toast({
+        title: "완료",
+        description: "미션이 완료되었습니다!",
+      });
+    } catch (error) {
+      console.error('Failed to complete mission:', error);
+      toast({
+        title: "오류",
+        description: "미션 완료 처리에 실패했습니다.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSkipMeal = async (mealType: string) => {
@@ -366,17 +462,21 @@ const MealRecord = () => {
             {dateRange.map((date, index) => {
               const isToday = date.toDateString() === new Date().toDateString();
               const isSelected = date.toDateString() === selectedDate.toDateString();
+              const isDisabled = activeTab === 'dailyMissions' && !isToday;
               
               return (
                 <button
                   key={index}
-                  onClick={() => setSelectedDate(date)}
+                  onClick={() => !isDisabled && setSelectedDate(date)}
+                  disabled={isDisabled}
                   className={`flex flex-col items-center px-3 py-2 rounded-lg min-w-[50px] ${
-                    isSelected 
-                      ? 'bg-gray-800 text-white' 
-                      : isToday 
-                        ? 'bg-gray-200 text-gray-800' 
-                        : 'text-gray-600'
+                    isDisabled
+                      ? 'text-gray-300 cursor-not-allowed'
+                      : isSelected 
+                        ? 'bg-gray-800 text-white' 
+                        : isToday 
+                          ? 'bg-gray-200 text-gray-800' 
+                          : 'text-gray-600'
                   }`}
                 >
                   <span className="text-xs">{weekDays[date.getDay()]}</span>
@@ -659,40 +759,59 @@ const MealRecord = () => {
             </p>
           </div>
 
-          <div className="space-y-3">
-            {dailyMissions.map((mission) => (
-              <Card key={mission.id} className="border border-border/50">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                        mission.completed 
-                          ? 'bg-green-500 text-white' 
-                          : 'border-2 border-gray-300'
-                      }`}>
-                        {mission.completed && <Check size={16} />}
+          {missionsLoading ? (
+            <div className="space-y-3">
+              {[1,2,3,4,5].map((i) => (
+                <Card key={i} className="animate-pulse border border-border/50">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-6 h-6 rounded-full bg-muted"></div>
+                        <div className="h-4 bg-muted rounded w-32"></div>
                       </div>
-                      <span className={`font-medium ${
-                        mission.completed 
-                          ? 'text-green-600 line-through' 
-                          : 'text-foreground'
-                      }`}>
-                        {mission.title}
-                      </span>
+                      <div className="h-8 bg-muted rounded w-16"></div>
                     </div>
-                    <Button
-                      variant={mission.completed ? "outline" : "default"}
-                      size="sm"
-                      onClick={() => handleMissionToggle(mission.id)}
-                      className={mission.completed ? "text-green-600 border-green-200" : ""}
-                    >
-                      {mission.completed ? '완료됨' : '완료'}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {dailyMissions.map((mission) => (
+                <Card key={mission.dailyMissionId} className="border border-border/50">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                          mission.completed 
+                            ? 'bg-green-500 text-white' 
+                            : 'border-2 border-gray-300'
+                        }`}>
+                          {mission.completed && <Check size={16} />}
+                        </div>
+                        <span className={`font-medium ${
+                          mission.completed 
+                            ? 'text-green-600 line-through' 
+                            : 'text-foreground'
+                        }`}>
+                          {mission.title}
+                        </span>
+                      </div>
+                      <Button
+                        variant={mission.completed ? "outline" : "default"}
+                        size="sm"
+                        onClick={() => handleMissionComplete(mission.dailyMissionId)}
+                        disabled={mission.completed}
+                        className={mission.completed ? "text-green-600 border-green-200" : ""}
+                      >
+                        {mission.completed ? '완료됨' : '완료'}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
 
           {/* 미션 완료 현황 */}
           <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
