@@ -14,7 +14,8 @@ import {
   Mountain,
   Moon,
   Apple,
-  Minus
+  Minus,
+  X
 } from 'lucide-react';
 
 interface FoodItem {
@@ -56,6 +57,20 @@ const EditFoodDialog = ({ open, onOpenChange, food, onSave }: EditFoodDialogProp
     return Math.round((food.intakeKcal / food.intakeAmount) * gramsAmount);
   };
 
+  const calculateNutrients = () => {
+    if (!food) return { carbohydrates: 0, protein: 0, fat: 0 };
+    // Mock calculation - in real app, this would come from API
+    const totalCarbs = Math.round(calculateKcal() * 0.5 / 4 * 10) / 10; // 50% carbs
+    const totalProtein = Math.round(calculateKcal() * 0.2 / 4 * 10) / 10; // 20% protein  
+    const totalFat = Math.round(calculateKcal() * 0.3 / 9 * 10) / 10; // 30% fat
+    
+    return {
+      carbohydrates: totalCarbs,
+      protein: totalProtein,
+      fat: totalFat
+    };
+  };
+
   const adjustGrams = (increment: number) => {
     setGramsAmount(prev => Math.max(1, Math.min(2000, prev + increment)));
   };
@@ -75,6 +90,8 @@ const EditFoodDialog = ({ open, onOpenChange, food, onSave }: EditFoodDialogProp
 
   if (!food) return null;
 
+  const nutrients = calculateNutrients();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[90%] max-w-md">
@@ -83,6 +100,27 @@ const EditFoodDialog = ({ open, onOpenChange, food, onSave }: EditFoodDialogProp
         </DialogHeader>
         
         <div className="space-y-6">
+          {/* Food Info with 100g base */}
+          <div className="text-center space-y-3">
+            <p className="text-sm text-muted-foreground">
+              100g 당 {Math.round((food.intakeKcal / food.intakeAmount) * 100)}kcal
+            </p>
+            <div className="grid grid-cols-3 gap-3 text-xs">
+              <div className="bg-red-50 dark:bg-red-950/20 p-2 rounded">
+                <div className="text-red-600 dark:text-red-400 font-medium">탄수화물</div>
+                <div className="text-foreground">{Math.round((food.intakeKcal / food.intakeAmount) * 100 * 0.5 / 4)}g</div>
+              </div>
+              <div className="bg-yellow-50 dark:bg-yellow-950/20 p-2 rounded">
+                <div className="text-yellow-600 dark:text-yellow-400 font-medium">단백질</div>
+                <div className="text-foreground">{Math.round((food.intakeKcal / food.intakeAmount) * 100 * 0.2 / 4)}g</div>
+              </div>
+              <div className="bg-blue-50 dark:bg-blue-950/20 p-2 rounded">
+                <div className="text-blue-600 dark:text-blue-400 font-medium">지방</div>
+                <div className="text-foreground">{Math.round((food.intakeKcal / food.intakeAmount) * 100 * 0.3 / 9)}g</div>
+              </div>
+            </div>
+          </div>
+
           {/* Gram Input */}
           <div className="space-y-3">
             <label className="text-sm font-medium text-foreground">수량 (g)</label>
@@ -142,14 +180,28 @@ const EditFoodDialog = ({ open, onOpenChange, food, onSave }: EditFoodDialogProp
             </div>
           </div>
 
-          {/* Calorie Preview */}
+          {/* Calorie and Nutrients Preview */}
           <div className="bg-muted p-4 rounded-lg">
-            <div className="text-center">
+            <div className="text-center mb-4">
               <div className="text-2xl font-bold text-foreground mb-1">
                 {calculateKcal()}kcal
               </div>
               <div className="text-sm text-muted-foreground">
                 예상 칼로리
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-xs">
+              <div className="bg-red-50 dark:bg-red-950/20 p-2 rounded text-center">
+                <div className="text-red-600 dark:text-red-400 font-medium">탄수화물</div>
+                <div className="text-foreground font-bold">{nutrients.carbohydrates}g</div>
+              </div>
+              <div className="bg-yellow-50 dark:bg-yellow-950/20 p-2 rounded text-center">
+                <div className="text-yellow-600 dark:text-yellow-400 font-medium">단백질</div>
+                <div className="text-foreground font-bold">{nutrients.protein}g</div>
+              </div>
+              <div className="bg-blue-50 dark:bg-blue-950/20 p-2 rounded text-center">
+                <div className="text-blue-600 dark:text-blue-400 font-medium">지방</div>
+                <div className="text-foreground font-bold">{nutrients.fat}g</div>
               </div>
             </div>
           </div>
@@ -160,7 +212,7 @@ const EditFoodDialog = ({ open, onOpenChange, food, onSave }: EditFoodDialogProp
             onClick={handleSave}
             disabled={gramsAmount < 1}
           >
-            수정하기
+            추가하기
           </Button>
         </div>
       </DialogContent>
@@ -361,12 +413,12 @@ const MealDetail = () => {
       {/* Header */}
       <div className="bg-background border-b px-4 py-4">
         <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/meal-record')}
-            className="p-2"
-          >
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/meal-record?tab=myDay')}
+              className="p-2"
+            >
             <ArrowLeft size={20} />
           </Button>
           <div className="flex items-center gap-2">
@@ -410,14 +462,24 @@ const MealDetail = () => {
                             {food.intakeKcal}kcal
                           </div>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditFood(food)}
-                          className="p-2"
-                        >
-                          <Edit3 size={16} />
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditFood(food)}
+                            className="p-2"
+                          >
+                            <Edit3 size={16} />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteFood(food.mealLogId)}
+                            className="p-2 text-red-600 hover:text-red-700"
+                          >
+                            <X size={16} />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -437,65 +499,27 @@ const MealDetail = () => {
           )}
         </div>
 
-        {/* Total Calories and Nutrients */}
+
+        
+      </div>
+
+      {/* Fixed bottom section */}
+      <div className="sticky bottom-0 bg-background border-t p-4 space-y-4">
+        {/* Total Calories Summary */}
         {mealData && mealData.foods.length > 0 && (
-          <Card className="border border-border/50">
-            <CardContent className="p-6">
-              <div className="text-center mb-6">
-                <div className="text-3xl font-bold text-foreground mb-2">
-                  총 {mealData.totalKcal}kcal
-                </div>
+          <div className="bg-muted p-4 rounded-lg">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-foreground">
+                총 {mealData.totalKcal}kcal
               </div>
-
-              {/* Nutrient Bar */}
-              <div className="space-y-4">
-                <div className="flex gap-1 h-3 rounded-full overflow-hidden">
-                  <div 
-                    className="bg-orange-400" 
-                    style={{ width: `${carbsPercentage}%` }}
-                  ></div>
-                  <div 
-                    className="bg-blue-500" 
-                    style={{ width: `${proteinPercentage}%` }}
-                  ></div>
-                  <div 
-                    className="bg-green-500" 
-                    style={{ width: `${fatPercentage}%` }}
-                  ></div>
-                </div>
-                
-                <div className="grid grid-cols-3 gap-4 text-center text-sm">
-                  <div>
-                    <div className="flex items-center justify-center gap-1 mb-1">
-                      <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
-                      <span className="text-muted-foreground">탄수화물</span>
-                    </div>
-                    <div className="font-semibold text-foreground">{nutrients.carbs}g</div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-center gap-1 mb-1">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      <span className="text-muted-foreground">단백질</span>
-                    </div>
-                    <div className="font-semibold text-foreground">{nutrients.protein}g</div>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-center gap-1 mb-1">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-muted-foreground">지방</span>
-                    </div>
-                    <div className="font-semibold text-foreground">{nutrients.fat}g</div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
-
+        
         {/* Action Buttons */}
-        <div className="space-y-3">
+        <div className="flex gap-3">
           <Button 
-            className="w-full py-3"
+            className="flex-1 py-3"
             onClick={handleAddFood}
           >
             <Plus size={20} className="mr-2" />
@@ -504,7 +528,7 @@ const MealDetail = () => {
           
           <Button 
             variant="outline"
-            className="w-full py-3"
+            className="flex-1 py-3"
             onClick={handleComplete}
           >
             완료

@@ -29,6 +29,8 @@ const FoodSearch = () => {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [gramsAmount, setGramsAmount] = useState(100);
   const [isLoading, setIsLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   // Mock data for search results
   const mockFoodData: FoodItem[] = [
@@ -106,6 +108,23 @@ const FoodSearch = () => {
     }
   ];
 
+  // 파스타 관련 자동완성 예시
+  const pastaAutocomplete = [
+    '파스타',
+    '토마토 파스타',
+    '크림 파스타',
+    '알리오 올리오 파스타',
+    '까르보나라 파스타',
+    '볼로네제 파스타',
+    '페스토 파스타',
+    '새우 파스타',
+    '버섯 파스타',
+    '스파게티',
+    '펜네',
+    '파르팔레',
+    '라자냐'
+  ];
+
   const mealTypeLabels = {
     breakfast: '아침',
     lunch: '점심',
@@ -114,6 +133,18 @@ const FoodSearch = () => {
   };
 
   useEffect(() => {
+    if (searchKeyword.length >= 1) {
+      // 자동완성 검색
+      const filtered = pastaAutocomplete.filter(item => 
+        item.toLowerCase().includes(searchKeyword.toLowerCase())
+      );
+      setSuggestions(filtered.slice(0, 5));
+      setShowSuggestions(filtered.length > 0 && searchKeyword.length > 0);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+
     if (searchKeyword.length >= 2) {
       handleSearch();
     } else {
@@ -228,8 +259,28 @@ const FoodSearch = () => {
             placeholder="무슨 음식을 드셨나요?"
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
+            onFocus={() => setShowSuggestions(suggestions.length > 0)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
             className="pl-10 h-12"
           />
+          
+          {/* 자동완성 드롭다운 */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute top-full left-0 right-0 bg-background border border-border rounded-md shadow-lg z-10 mt-1">
+              {suggestions.map((suggestion, index) => (
+                <button
+                  key={index}
+                  className="w-full text-left px-4 py-2 hover:bg-muted transition-colors text-foreground"
+                  onClick={() => {
+                    setSearchKeyword(suggestion);
+                    setShowSuggestions(false);
+                  }}
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Search Results */}

@@ -932,8 +932,9 @@ const MealRecord = () => {
                 className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-3"
                 onClick={() => {
                   setMealDialogOpen(false);
-                  handleAddFoodClick();
+                  handleAddFood(selectedMeal || '');
                 }}
+                disabled={!selectedMeal || (dayData && hasFoodItems(dayData.meals[selectedMeal.toUpperCase() as keyof typeof dayData.meals]?.items || []))}
               >
                 음식 등록
               </Button>
@@ -941,21 +942,11 @@ const MealRecord = () => {
                 variant="outline"
                 className="px-4 py-3 border-muted text-muted-foreground hover:bg-muted/10"
                 onClick={() => handleSkipMeal(selectedMeal || '')}
+                disabled={!selectedMeal || (dayData && hasFoodItems(dayData.meals[selectedMeal.toUpperCase() as keyof typeof dayData.meals]?.items || []))}
               >
                 안먹었어요
               </Button>
             </div>
-
-            {/* 수정 완료 버튼 */}
-            <Button 
-              className="w-full mt-2 bg-foreground hover:bg-foreground/90 text-background py-3"
-              onClick={() => {
-                setMealDialogOpen(false);
-                // 저장 로직
-              }}
-            >
-              수정 완료
-            </Button>
           </div>
         </DialogContent>
       </Dialog>
