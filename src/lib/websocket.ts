@@ -1,10 +1,10 @@
 import {Client} from "@stomp/stompjs";
 import {onNotify} from "./notificationProvider.tsx";
-import {defaultFetch} from "@/lib/DefaultFetch.ts";
+import {defaultFetch} from "@/api/defaultFetch.ts";
 
 export const stompClient = new Client({
   webSocketFactory: () =>
-      new WebSocket("ws://" + import.meta.env.BACKEND_ADDRESS + "/ws"), // 순수 WebSocket 사용
+      new WebSocket("ws://" + import.meta.env.VITE_BACKEND_ADDRESS + "/ws"), // 순수 WebSocket 사용
   debug: (str) => console.log(str),
   reconnectDelay: 1000000,
   onConnect: () => {
