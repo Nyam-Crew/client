@@ -2,8 +2,8 @@ import {useEffect, useRef, useState} from 'react';
 import {Button} from '@/components/ui/button';
 import {Textarea} from '@/components/ui/textarea';
 import {Send} from 'lucide-react';
-import {subscribeToChatRoom} from "@/lib/webscoekt.ts";
-import {defaultFetch} from "@/lib/DefaultFetch.ts";
+import {subscribeToChatRoom} from "@/lib/websocket.ts";
+import {defaultFetch} from '@/api/defaultFetch.ts';
 import {StompSubscription} from "@stomp/stompjs";
 
 interface ChatMessage {
