@@ -234,7 +234,8 @@ const WhatIAteTab = ({
 
   /** 상세 이동 경로(일관화) */
   const goDetail = (mealId: string) => {
-    navigate(`/record/meal/detail?type=${mealId}&date=${effectiveDate}`);
+    navigate(`/meal-detail/${mealId}`);
+    //navigate(`/record/meal/detail?type=${mealId}&date=${effectiveDate}`);
   };
 
   return (
