@@ -1,32 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
+import { CardContent } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
-import { ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
+import {ChevronLeft, ChevronRight, ArrowLeft, Check, Stamp} from 'lucide-react';
+import { defaultFetch } from "@/api/defaultFetch.ts";
 
-interface CalendarMonthResponse {
-  year: number;
-  month: number;
-  days: number;
-  items: CalendarDayItem[];
-}
-
-interface CalendarDayItem {
-  date: string;
-  kcal: number | null;
-  weight: number | null;
-  water: number | null;
-  achieved: boolean;
-}
-
-interface DayData {
-  calories: number;
-  weight?: number;
-  water?: number;
-  missionsCompleted: boolean;
-}
 
 const RecordCalendar = () => {
   const navigate = useNavigate();
@@ -36,15 +17,29 @@ const RecordCalendar = () => {
   const [calendarData, setCalendarData] = useState<CalendarMonthResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // API에서 월별 캘린더 데이터 가져오기
+  const headerRef = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const onResize = () => {};
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // ✅ defaultFetch로 교체 + 절대 경로 보장
   const fetchCalendarData = async (year: number, month: number) => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/calendar/month?year=${year}&month=${month}`);
-      if (response.ok) {
-        const data = await response.json();
-        setCalendarData(data);
+      const data = await defaultFetch(`/api/calendar/month?year=${year}&month=${month}`, {
+        method: 'GET',
+        // 필요 시: headers: { Accept: 'application/json' },
+      });
+
+      // 혹시 서버가 200 HTML을 준 경우 방어
+      if (!data || typeof data !== 'object' || !('items' in data)) {
+        console.error('[RecordCalendar] JSON이 아님 또는 형태 불일치. preview=', String(data).slice(0, 200));
+        throw new Error('달력 응답 형식이 올바르지 않습니다.');
       }
+
+      setCalendarData(data as CalendarMonthResponse);
     } catch (error) {
       console.error('Failed to fetch calendar data:', error);
     } finally {
@@ -52,7 +47,6 @@ const RecordCalendar = () => {
     }
   };
 
-  // URL에서 선택된 날짜 파라미터 읽기
   useEffect(() => {
     const dateParam = searchParams.get('d');
     if (dateParam) {
@@ -64,265 +58,219 @@ const RecordCalendar = () => {
     }
   }, [searchParams]);
 
-  // 현재 월이 변경될 때마다 API 호출
   useEffect(() => {
+    const controller = new AbortController();
     fetchCalendarData(currentMonth.getFullYear(), currentMonth.getMonth() + 1);
+    return () => controller.abort();
   }, [currentMonth]);
 
-  // 샘플 데이터 - 각 날짜별 기록 (2025년으로 업데이트)
-  const sampleData: Record<string, DayData> = {
-    '2025-01-15': { calories: 1120, weight: 65.5, water: 1200, missionsCompleted: true },
-    '2025-01-16': { calories: 890, water: 800, missionsCompleted: false },
-    '2025-01-17': { calories: 1340, weight: 65.2, water: 1500, missionsCompleted: true },
-    '2025-01-18': { calories: 644, water: 1200, missionsCompleted: false },
-    '2025-01-19': { calories: 0, missionsCompleted: false },
-    '2025-01-20': { calories: 1200, weight: 64.8, water: 1800, missionsCompleted: true },
-    '2025-01-21': { calories: 1450, weight: 64.5, water: 2000, missionsCompleted: true },
-    '2025-01-22': { calories: 980, water: 1300, missionsCompleted: false },
-    '2025-01-23': { calories: 1600, weight: 64.3, water: 1600, missionsCompleted: true },
-    '2025-01-24': { calories: 750, water: 900, missionsCompleted: false },
-    '2025-01-25': { calories: 1380, weight: 64.0, water: 1700, missionsCompleted: true },
-    '2025-01-26': { calories: 1100, water: 1400, missionsCompleted: true },
-    '2025-01-27': { calories: 1250, weight: 63.8, water: 1900, missionsCompleted: false },
-  };
-
-  const formatDateKey = (date: Date): string => {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-  };
+  const formatDateKey = (date: Date): string =>
+      `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
   const getDayData = (date: Date): DayData | null => {
     if (!calendarData) return null;
-    
     const dateKey = formatDateKey(date);
-    const dayItem = calendarData.items.find(item => item.date === dateKey);
-    
+    const dayItem = calendarData.items.find((item) => item.date === dateKey);
     if (!dayItem) return null;
-    
     return {
       calories: dayItem.kcal || 0,
       weight: dayItem.weight || undefined,
       water: dayItem.water || undefined,
-      missionsCompleted: dayItem.achieved
+      missionsCompleted: dayItem.achieved,
     };
   };
 
-  const formatWaterDisplay = (waterMl: number | null | undefined): string => {
-    if (!waterMl) return '-';
-    return `${(waterMl / 1000).toFixed(1)}L`;
-  };
+  const formatWaterDisplay = (waterMl: number | null | undefined): string =>
+      !waterMl ? '-' : `${(waterMl / 1000).toFixed(1)}L`;
 
   const handlePrevMonth = () => {
-    const newDate = new Date(currentMonth);
-    newDate.setMonth(newDate.getMonth() - 1);
-    setCurrentMonth(newDate);
+    const d = new Date(currentMonth);
+    d.setMonth(d.getMonth() - 1);
+    setCurrentMonth(d);
   };
-
   const handleNextMonth = () => {
-    const newDate = new Date(currentMonth);
-    newDate.setMonth(newDate.getMonth() + 1);
-    setCurrentMonth(newDate);
+    const d = new Date(currentMonth);
+    d.setMonth(d.getMonth() + 1);
+    setCurrentMonth(d);
   };
-
   const goToToday = () => {
     const today = new Date();
     setCurrentMonth(today);
     setSelectedDate(today);
   };
-
   const handleBack = () => {
-    // 브라우저 히스토리가 있으면 뒤로가기, 없으면 기록 메인으로 이동
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      const dateParam = formatDateKey(selectedDate);
-      navigate(`/record?d=${dateParam}&tab=myday`);
-    }
+    if (window.history.length > 1) navigate(-1);
+    else navigate(`/record?d=${formatDateKey(selectedDate)}&tab=myday`);
   };
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#fffff5' }}>
-      {/* 헤더 */}
-      <div className="bg-white border-b border-border px-4 py-4 sticky top-0 z-10">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleBack}
-              className="p-2"
-            >
-              <ArrowLeft size={20} className="text-foreground" />
+      <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#fffff5' }}>
+        {/* 헤더(고정) */}
+        <div
+            ref={headerRef}
+            className="bg-white border-b border-border px-4 py-4 sticky top-0 z-10"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="sm" onClick={handleBack} className="p-2">
+                <ArrowLeft size={20} className="text-foreground" />
+              </Button>
+              <h1 className="text-lg font-semibold text-foreground">기록 캘린더</h1>
+            </div>
+
+            <Button variant="outline" size="sm" onClick={goToToday} className="text-sm">
+              오늘
             </Button>
-            <h1 className="text-lg font-semibold text-foreground">기록 캘린더</h1>
           </div>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={goToToday}
-            className="text-sm"
-          >
-            오늘
-          </Button>
         </div>
-      </div>
 
-      {/* 캘린더 영역 */}
-      <div className="px-4 pt-6 pb-6 flex-1">
-        <Card className="shadow-lg border-0 bg-white h-full">
-          <CardContent className="p-6 h-full flex flex-col">
-            {/* 월 네비게이션 */}
-            <div className="flex items-center justify-between mb-6">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handlePrevMonth}
-                className="p-2 hover:bg-brand-green/10"
-                disabled={loading}
-              >
-                <ChevronLeft size={20} />
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleNextMonth}
-                className="p-2 hover:bg-brand-green/10"
-                disabled={loading}
-              >
-                <ChevronRight size={20} />
-              </Button>
-            </div>
+        {/* ✅ 캘린더 영역: 헤더 제외 높이를 전부 사용 */}
+        <div className="px-4 pt-6 pb-6">
+          <Card className="shadow-lg border-0 bg-white h-full">
+            {/* ✅ min-h-0로 내부 스크롤 허용 */}
+            <CardContent className="p-6 flex flex-col overflow-visible">
+              {/* 월 네비게이션 (가운데 월 타이틀 표시) */}
+              <div className="flex items-center justify-between mb-4 shrink-0">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handlePrevMonth}
+                    className="p-2 hover:bg-muted"
+                    disabled={loading}
+                >
+                  <ChevronLeft size={20} />
+                </Button>
 
-            {/* 캘린더 */}
-            <div className="calendar-container w-full">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => date && setSelectedDate(date)}
-                month={currentMonth}
-                onMonthChange={(newMonth) => {
-                  setCurrentMonth(newMonth);
-                }}
-                className="w-full h-full"
-                components={{
-                  DayContent: ({ date }) => {
-                    const dayData = getDayData(date);
-                    const isToday = date.toDateString() === new Date().toDateString();
-                    const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
-                    
-                    return (
-                      <div className="relative w-full h-full flex flex-col justify-start p-2 min-h-[110px]">
-                        {/* 좌상단: 날짜 숫자 */}
-                        <div className={`text-sm font-medium mb-2 self-start ${
-                          isSelected ? 'text-white' : 'text-gray-700'
-                        }`}>
-                          {date.getDate()}
-                        </div>
-                        
-                        {/* 우상단: 데일리 미션 배지 */}
-                        {dayData?.missionsCompleted && (
-                          <div className="absolute top-2 right-2">
-                            <span className="text-green-600 font-bold">✅</span>
-                          </div>
-                        )}
-                        
-                        {/* 날짜 아래 3줄 요약 */}
-                        <div className={`text-xs space-y-1 w-full tabular-nums ${
-                          isSelected ? 'text-white/90' : 'text-gray-600'
-                        }`}>
-                          <div className="font-medium">
-                            {dayData ? `${dayData.calories}kcal` : '0kcal'}
-                          </div>
-                          <div>
-                            {dayData?.weight ? `${dayData.weight}kg` : '-'}
-                          </div>
-                          <div>
-                            {dayData?.water ? formatWaterDisplay(dayData.water) : '-'}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-                }}
-                classNames={{
-                  caption_label: "hidden",
-                  caption: "hidden",
-                  nav: "hidden",
-                  day: "min-h-[140px] w-full p-0 text-sm relative hover:shadow-sm transition-all rounded-md border border-gray-200",
-                  day_today: "border-2 border-gray-400",
-                  day_selected: "bg-blue-500 text-white hover:bg-blue-600",
-                  day_outside: "opacity-50",
-                  head_cell: "text-muted-foreground font-medium text-sm w-full text-center py-3",
-                  cell: "p-1 w-full",
-                  table: "w-full border-collapse border-spacing-0",
-                  head_row: "flex w-full",
-                  row: "flex w-full mt-2"
-                }}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 선택된 날짜 상세 정보 */}
-      {selectedDate && (
-        <div className="px-4 py-6">
-          <Card className="bg-white shadow-md">
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">
-                {selectedDate.toLocaleDateString('ko-KR', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                  weekday: 'short'
-                })}
-              </h3>
-              
-              {getDayData(selectedDate) ? (
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-foreground">총 섭취 칼로리</span>
-                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-                      {getDayData(selectedDate)!.calories}kcal
-                    </Badge>
-                  </div>
-                  
-                  {getDayData(selectedDate)!.weight && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-foreground">몸무게</span>
-                      <Badge variant="outline" className="bg-secondary/10 text-foreground border-secondary/20">
-                        {getDayData(selectedDate)!.weight}kg
-                      </Badge>
-                    </div>
-                  )}
-                  
-                  {getDayData(selectedDate)!.water && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-foreground">물 섭취량</span>
-                      <Badge variant="outline" className="bg-accent/10 text-foreground border-accent/20">
-                        {formatWaterDisplay(getDayData(selectedDate)!.water)}
-                      </Badge>
-                    </div>
-                  )}
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="text-foreground">데일리 미션</span>
-                    <Badge variant={getDayData(selectedDate)!.missionsCompleted ? "default" : "secondary"}>
-                      {getDayData(selectedDate)!.missionsCompleted ? '완료' : '미완료'}
-                    </Badge>
-                  </div>
+                <div className="text-base font-semibold tabular-nums">
+                  {currentMonth.getFullYear()}년{' '}
+                  {String(currentMonth.getMonth() + 1).padStart(2, '0')}월
                 </div>
-              ) : (
-                <p className="text-muted-foreground text-center py-4">
-                  이 날에 대한 기록이 없습니다.
-                </p>
-              )}
+
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleNextMonth}
+                    className="p-2 hover:bg-muted"
+                    disabled={loading}
+                >
+                  <ChevronRight size={20} />
+                </Button>
+              </div>
+
+              {/* ✅ 캘린더 컨테이너: 카드 내부 남은 공간 100% + 스크롤 */}
+              <div className="calendar-container w-full">
+                <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => date && setSelectedDate(date)}
+                    month={currentMonth}
+                    onMonthChange={(newMonth) => setCurrentMonth(newMonth)}
+                    className="w-full"
+                    components={{
+                      DayContent: ({ date }) => {
+                        const dayData = getDayData(date);
+                        const isSelected =
+                            selectedDate && date.toDateString() === selectedDate.toDateString();
+                        const isToday = date.toDateString() === new Date().toDateString();
+                        const isWeekend = [0, 6].includes(date.getDay());
+
+                        return (
+                            <div
+                                className={[
+                                  'relative w-full h-full flex flex-col p-2 rounded-md transition-all',
+                                  'bg-white',
+                                  isSelected ? 'ring-2 ring-blue-500' : 'hover:shadow-sm',
+                                ].join(' ')}
+                            >
+                              {/* 날짜 숫자 + 도장 배지 */}
+                              <div className="flex items-center justify-between">
+                          <span
+                              className={[
+                                'text-sm font-semibold',
+                                isWeekend ? 'text-rose-600' : 'text-gray-900',
+                                isSelected ? 'text-blue-600' : '',
+                              ].join(' ')}
+                          >
+                            {date.getDate()}
+                          </span>
+
+                                {/* 도장 (achieved=true) */}
+
+                                {dayData?.missionsCompleted && (
+                                    <span className="absolute top-1.5 right-1.5 text-xl ">
+                                        ✅
+                                    </span>
+                                )}
+
+                                {/*{dayData?.missionsCompleted && (*/}
+                                {/*    <div*/}
+                                {/*        className="absolute top-1.5 right-1.5 grid place-items-center*/}
+                                {/*       w-9 h-9 rounded-full bg-red-100/80 text-red-700*/}
+                                {/*       ring-2 ring-red-700/80*/}
+                                {/*       rotate-[-12deg] opacity-90*/}
+                                {/*       shadow-[0_0_0_4px_rgba(185,28,28,0.15),0_6px_14px_rgba(185,28,28,0.22)]*/}
+                                {/*       mix-blend-multiply"*/}
+                                {/*                            >*/}
+                                {/*      <Stamp size={16} strokeWidth={2.5} />*/}
+                                {/*    </div>*/}
+                                {/*)}*/}
+                              </div>
+
+                              {/* 오늘 테두리 */}
+                              {isToday && (
+                                  <div className="absolute inset-0 rounded-md pointer-events-none ring-1 ring-gray-300"></div>
+                              )}
+
+                              {/* 요약 (kcal / kg / 물) */}
+                              <div className="mt-2 space-y-1 text-[11px] leading-4 text-gray-700">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">kcal</span>
+                                  <span className="font-medium tabular-nums">
+                              {dayData ? dayData.calories.toLocaleString() : 0}
+                            </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">kg</span>
+                                  <span className="tabular-nums">
+                              {dayData?.weight != null ? dayData.weight : '-'}
+                            </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">물</span>
+                                  <span className="tabular-nums">
+                              {dayData?.water ? `${(dayData.water / 1000).toFixed(1)}L` : '-'}
+                            </span>
+                                </div>
+                              </div>
+                            </div>
+                        );
+                      },
+                    }}
+                    classNames={{
+                      // ✅ DayPicker 내부까지 높이 전파 (꽉 채우기)
+                      months: 'h-full flex-1',
+                      month: 'h-full flex-1 flex flex-col',
+                      table: 'w-full border-collapse border-spacing-0 h-full',
+                      tbody: 'h-full flex-1 flex flex-col',
+                      head_row: 'flex w-full',
+                      head_cell:
+                          'text-muted-foreground font-medium text-xs w-full text-center py-2',
+                      row: 'flex w-full flex-1',
+                      cell: 'p-1 w-full h-full',
+                      day: 'w-full h-full p-0', // 내부에서 카드 스타일 적용
+                      day_today: '', // 오늘 스타일은 DayContent에서 처리
+                      day_selected: '', // 선택 스타일도 DayContent에서 처리
+                      day_outside: 'opacity-50',
+                      caption_label: 'hidden',
+                      caption: 'hidden',
+                      nav: 'hidden',
+                    }}
+                />
+              </div>
             </CardContent>
           </Card>
         </div>
-      )}
-    </div>
+      </div>
   );
 };
 
