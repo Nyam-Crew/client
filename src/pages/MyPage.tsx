@@ -9,6 +9,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { 
   User, 
   Settings, 
@@ -26,7 +27,9 @@ import {
   Edit,
   Check,
   FileText,
-  MessageSquare
+  MessageSquare,
+  LogOut,
+  UserX
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -75,6 +78,26 @@ const MyPage = () => {
   const [currentPostPage, setCurrentPostPage] = useState(1);
   const [currentCommentPage, setCurrentCommentPage] = useState(1);
   const { toast } = useToast();
+
+  // 로그아웃 및 회원 탈퇴 핸들러
+  const handleLogout = () => {
+    // 실제로는 API 호출하여 로그아웃 처리
+    console.log('로그아웃 처리');
+    toast({
+      title: "로그아웃 완료",
+      description: "성공적으로 로그아웃되었습니다.",
+    });
+  };
+
+  const handleDeleteAccount = () => {
+    // 실제로는 API 호출하여 회원 탈퇴 처리
+    console.log('회원 탈퇴 처리');
+    toast({
+      title: "회원 탈퇴 완료",
+      description: "계정이 성공적으로 삭제되었습니다.",
+      variant: "destructive"
+    });
+  };
 
   const form = useForm<MemberInfoForm>({
     resolver: zodResolver(memberInfoSchema),
@@ -519,7 +542,7 @@ const MyPage = () => {
         </div>
 
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User size={16} />
               <span className="hidden sm:inline">프로필</span>
@@ -539,11 +562,6 @@ const MyPage = () => {
               <FileText size={16} />
               <span className="hidden sm:inline">내 게시글</span>
               <span className="sm:hidden">게시글</span>
-            </TabsTrigger>
-            <TabsTrigger value="comments" className="flex items-center gap-2">
-              <MessageSquare size={16} />
-              <span className="hidden sm:inline">내 댓글</span>
-              <span className="sm:hidden">댓글</span>
             </TabsTrigger>
           </TabsList>
 
@@ -869,12 +887,65 @@ const MyPage = () => {
                       </div>
                     </div>
 
-                    <Button 
-                      onClick={() => setIsEditMode(true)}
-                      className="w-full mt-6"
-                    >
-                      정보수정하기
-                    </Button>
+                    <div className="space-y-3 mt-6">
+                      <Button 
+                        onClick={() => setIsEditMode(true)}
+                        className="w-full"
+                      >
+                        정보수정하기
+                      </Button>
+                      
+                      {/* 로그아웃 및 회원 탈퇴 버튼 */}
+                      <div className="flex gap-3">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="outline" className="flex-1 flex items-center gap-2">
+                              <LogOut size={16} />
+                              로그아웃
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>로그아웃 확인</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                정말로 로그아웃하시겠습니까?
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>취소</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleLogout}>확인</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" className="flex-1 flex items-center gap-2">
+                              <UserX size={16} />
+                              회원 탈퇴
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>회원 탈퇴 확인</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                정말로 회원 탈퇴를 진행하시겠습니까?<br />
+                                탈퇴 후에는 모든 데이터가 삭제되며 복구할 수 없습니다.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>취소</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={handleDeleteAccount}
+                                className="bg-destructive hover:bg-destructive/90"
+                              >
+                                탈퇴하기
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -1161,88 +1232,6 @@ const MyPage = () => {
             </Card>
           </TabsContent>
 
-          {/* 내가 작성한 댓글 탭 */}
-          <TabsContent value="comments">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquare size={20} />
-                  내가 작성한 댓글
-                </CardTitle>
-                <p className="text-muted-foreground">
-                  총 {userComments.length}개의 댓글을 작성했어요
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {currentComments.length > 0 ? (
-                  <div className="space-y-4">
-                    {currentComments.map((comment) => (
-                      <Card key={comment.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                        <CardContent className="p-4">
-                          <div className="space-y-3">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h4 className="font-medium text-sm text-foreground line-clamp-1">{comment.postTitle}</h4>
-                                  <Badge variant="secondary" className="text-xs flex-shrink-0">{comment.postCategory}</Badge>
-                                </div>
-                                <p className="text-xs text-muted-foreground">by {comment.postAuthor}</p>
-                              </div>
-                            </div>
-                            
-                            <div className="bg-muted/30 rounded-lg p-3">
-                              <p className="text-sm text-foreground leading-relaxed">{comment.comment}</p>
-                            </div>
-                            
-                            <div className="flex items-center justify-end text-xs text-muted-foreground">
-                              <span>{comment.createdDate}</span>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <MessageSquare size={48} className="mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-lg font-medium text-foreground mb-2">작성한 댓글이 없습니다</h3>
-                    <p className="text-muted-foreground">커뮤니티에서 다른 사람들과 소통해보세요!</p>
-                  </div>
-                )}
-
-                {/* 댓글 페이징 */}
-                {totalCommentPages > 1 && (
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious 
-                          onClick={() => setCurrentCommentPage(Math.max(1, currentCommentPage - 1))}
-                          className={currentCommentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                        />
-                      </PaginationItem>
-                      {Array.from({ length: totalCommentPages }, (_, i) => i + 1).map((page) => (
-                        <PaginationItem key={page}>
-                          <PaginationLink
-                            onClick={() => setCurrentCommentPage(page)}
-                            isActive={page === currentCommentPage}
-                            className="cursor-pointer"
-                          >
-                            {page}
-                          </PaginationLink>
-                        </PaginationItem>
-                      ))}
-                      <PaginationItem>
-                        <PaginationNext 
-                          onClick={() => setCurrentCommentPage(Math.min(totalCommentPages, currentCommentPage + 1))}
-                          className={currentCommentPage === totalCommentPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
       </div>
     </div>
