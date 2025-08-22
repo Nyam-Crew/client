@@ -366,8 +366,9 @@ const TeamDetailPage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex-1 p-0">
-                <ChatContainer 
-                  roomId={teamId || '1'} 
+                <ChatContainer
+                  teamId={teamId}
+                  // 여기다 진짜 내 ID를 추가해줘야 함
                   currentUserId="current"
                 />
               </CardContent>
