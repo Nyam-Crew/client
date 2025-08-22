@@ -1,54 +1,63 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Check, Droplets } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Check, Droplets } from "lucide-react";
 import { defaultFetch } from "@/api/defaultFetch.ts";
 
+/** 식사 카드 템플릿 데이터 */
 interface MealCardData {
-  id: string;               // 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK'
+  id: string;                // 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK'
   name: string;
   icon: React.ElementType;
   totalKcal: number;
-  foods: any[];
-  takeMeal?: boolean | null;
+  foods: any[];              // 요약 화면에서는 사용하지 않지만 타입 유지
+  takeMeal?: boolean | null; // true=먹음, false=안먹음, null=미기록
 }
 
+/** 상위에서 내려주는 prop */
 interface WhatIAteTabProps {
   /** 상위에서 YYYY-MM-DD 형태로 내려주면 이 값을 우선 사용 */
   dateKey?: string;
+
+  // 체중
   weight: number;
   setWeight: (weight: number) => void;
-  handleWeightSave: () => void;
+  handleWeightSave: () => void;    // (선택) 상위 저장 콜백이 있다면 병행 사용 가능
   weightLoading: boolean;
-  loading: boolean; // 부모 로딩
-  mealCards: MealCardData[]; // 아이콘/이름 템플릿
+
+  // 로딩
+  loading: boolean;
+
+  // 식사 카드 템플릿
+  mealCards: MealCardData[];
+
+  // 이벤트 콜백
   handleMealCardClick: (mealId: string, status: string) => void;
   handleAddFood: (mealType: string) => void;
-  handleSkipMeal: (mealType: string) => void; // 기존 prop은 유지 (내부에서 호출해도 무방)
-  waterAmount: number;
+  handleSkipMeal: (mealType: string) => void;
 
+  // 물
+  waterAmount: number;
   handleWaterClick: (date: string, currentAmount: number) => void;
-  onWaterAmountFetched: (amount: number) => void; // New prop
+  onWaterAmountFetched: (amount: number) => void;
 }
 
-// API 응답 타입
-type MealKey = 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK';
+/** API 타입 */
+type MealKey = "BREAKFAST" | "LUNCH" | "DINNER" | "SNACK";
 
 const normalizeMealTypeForApi = (val: string): MealKey => {
   const u = val.toUpperCase();
-  if (u === 'BREAKFAST' || u === 'LUNCH' || u === 'DINNER' || u === 'SNACK') return u as MealKey;
-  console.warn('[WhatIAteTab] Unknown mealType, fallback to SNACK:', val);
-  return 'SNACK';
+  if (u === "BREAKFAST" || u === "LUNCH" || u === "DINNER" || u === "SNACK") return u as MealKey;
+  console.warn("[WhatIAteTab] Unknown mealType, fallback to SNACK:", val);
+  return "SNACK";
 };
 
 interface MealDayResponse {
-  date: string; // 'YYYY-MM-DD'
-  meals: Record<
-      MealKey,
-      { totalKcal: number | null; takeMeal: boolean | null }
-  >;
+  /** ISO 또는 'YYYY-MM-DD' */
+  date: string;
+  meals: Record<MealKey, { totalKcal: number | null; takeMeal: boolean | null }>;
   water: number | null;   // ml
   weight: number | null;  // kg
 }
@@ -71,72 +80,59 @@ const WhatIAteTab = ({
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  // 상태 타입과 계산 로직 교체
-  type MealStatus = 'empty' | 'skipped' | 'filled';
+  /** 상태 계산: takeMeal만으로 결정 */
+  type MealStatus = "empty" | "skipped" | "filled";
   const getMealStatus = (meal: MealCardData): MealStatus => {
-    if (meal.takeMeal === false) return 'skipped'; // 1) 안먹었어요
-    if (meal.takeMeal === true)  return 'filled';  // 2) 먹음
-    return 'empty';                                 // 3) 미기록(null)
+    if (meal.takeMeal === false) return "skipped";
+    if (meal.takeMeal === true) return "filled";
+    return "empty";
   };
 
-
-  // URL ?d=YYYY-MM-DD (없으면 null)
-  const dFromURL = searchParams.get('d');
-
-  const toDetailPath = (mealId: string) => `/meal-detail/${mealId.toLowerCase()}`;
-
-  // ✅ 실제로 사용할 날짜: prop > URL > 오늘
+  /** URL ?d=YYYY-MM-DD → 없으면 오늘 날짜 */
+  const dFromURL = searchParams.get("d");
   const effectiveDate = useMemo(() => {
     if (dateKey && /^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return dateKey;
     if (dFromURL && /^\d{4}-\d{2}-\d{2}$/.test(dFromURL)) return dFromURL;
     const d = new Date();
     const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
     return `${y}-${m}-${day}`;
   }, [dateKey, dFromURL]);
 
-  // 로컬 상태
+  /** API 상태 */
   const [apiLoading, setApiLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [cardsFromApi, setCardsFromApi] = useState<MealCardData[] | null>(null);
   const [waterFromApi, setWaterFromApi] = useState<number | null>(null);
 
-  // 공통 리패치 함수 (안먹었어요 등록 후 재사용)
+  /** 식사/물/체중 요약 재조회 */
   const refetchMealDay = useCallback(async () => {
     setApiLoading(true);
     setApiError(null);
 
     const reqUrl = `/api/meal/day?date=${encodeURIComponent(effectiveDate)}`;
-    console.log('[WhatIAteTab] 요청 시작:', reqUrl);
-
     try {
-      const data = await defaultFetch(reqUrl, { method: 'GET' });
-      console.log('[WhatIAteTab] 응답:', data);
-
-      // refetchMealDay() 내부 try 블록의 merge 부분만 교체
+      const data = await defaultFetch(reqUrl, { method: "GET" });
       const res = data as MealDayResponse | undefined;
-      if (!res || !res.meals) throw new Error('응답 형식이 올바르지 않습니다.');
+      if (!res || !res.meals) throw new Error("응답 형식이 올바르지 않습니다.");
 
-      // 템플릿 유지 + API merge (null→0 보정)
-      // refetchMealDay() try 블록 안 merged 만드는 부분만 교체
+      // 템플릿 유지 + API merge (키 대문자 보정, null → 기본값)
       const merged = mealCards.map((mc) => {
-        // 키 보정: API는 보통 대문자, 템플릿은 섞일 수 있음
         const key = String(mc.id).toUpperCase() as MealKey;
         const fromApi = (res.meals as any)[key] as
             | { totalKcal: number | null; takeMeal: boolean | null | string | undefined }
             | undefined;
 
-        // totalKcal 보정
-        const totalKcal = typeof fromApi?.totalKcal === 'number' ? fromApi.totalKcal : 0;
+        const totalKcal = typeof fromApi?.totalKcal === "number" ? fromApi.totalKcal : 0;
 
-        // takeMeal 보정: 문자열/undefined → boolean|null로 통일
+        // takeMeal: 문자열/undefined → boolean|null 정규화
         let takeMeal: boolean | null = null;
         const raw = fromApi?.takeMeal;
-        if (typeof raw === 'boolean') takeMeal = raw;
-        else if (typeof raw === 'string') {
-          if (raw.toLowerCase() === 'true') takeMeal = true;
-          else if (raw.toLowerCase() === 'false') takeMeal = false;
+        if (typeof raw === "boolean") takeMeal = raw;
+        else if (typeof raw === "string") {
+          if (raw.toLowerCase() === "true") takeMeal = true;
+          else if (raw.toLowerCase() === "false") takeMeal = false;
           else takeMeal = null;
         } else {
           takeMeal = raw ?? null;
@@ -145,56 +141,55 @@ const WhatIAteTab = ({
         return { ...mc, totalKcal, takeMeal, foods: [] };
       });
 
-      const waterVal = typeof res.water === 'number' ? res.water : 0;
-      const weightVal = typeof res.weight === 'number' ? res.weight : 0;
+      const waterVal = typeof res.water === "number" ? res.water : 0;
+      const weightVal = typeof res.weight === "number" ? res.weight : 0;
 
       setCardsFromApi(merged);
       setWaterFromApi(waterVal);
       setWeight(weightVal);
       onWaterAmountFetched(waterVal);
     } catch (e: any) {
-      console.error('[WhatIAteTab] 요청 실패:', e);
-      setApiError(e?.message ?? '불러오기 실패');
+      console.error("[WhatIAteTab] /api/meal/day 실패:", e);
+      setApiError(e?.message ?? "불러오기 실패");
     } finally {
       setApiLoading(false);
     }
   }, [effectiveDate, JSON.stringify(mealCards), setWeight, onWaterAmountFetched]);
 
-  // 최초/날짜 변경 시 호출
+  /** 최초/날짜 변경 시 재조회 */
   useEffect(() => {
     refetchMealDay();
   }, [refetchMealDay]);
 
+  /** 디버그: 상태 테이블 */
   useEffect(() => {
     if (cardsFromApi) {
-      console.table(cardsFromApi.map(c => ({
-        id: c.id,
-        totalKcal: c.totalKcal,
-        takeMeal: c.takeMeal,
-        status: c.takeMeal === false ? 'skipped' : c.takeMeal === true ? 'filled' : 'empty'
-      })));
+      console.table(
+          cardsFromApi.map((c) => ({
+            id: c.id,
+            totalKcal: c.totalKcal,
+            takeMeal: c.takeMeal,
+            status: c.takeMeal === false ? "skipped" : c.takeMeal === true ? "filled" : "empty",
+          }))
+      );
     }
   }, [cardsFromApi]);
 
-  // 렌더 소스 (안전 보정)
+  /** 렌더 소스(보정) */
   const isLoading = loading || apiLoading;
   const cardsToShow = (cardsFromApi ?? mealCards).map((c) => ({
     ...c,
-    totalKcal: typeof c.totalKcal === 'number' ? c.totalKcal : 0,
+    totalKcal: typeof c.totalKcal === "number" ? c.totalKcal : 0,
     foods: Array.isArray(c.foods) ? c.foods : [],
   }));
-  const waterToShow = typeof (waterFromApi ?? waterAmount) === 'number'
-      ? (waterFromApi ?? waterAmount)
-      : 0;
+  const waterToShow =
+      typeof (waterFromApi ?? waterAmount) === "number" ? (waterFromApi ?? waterAmount) : 0;
 
-  // 🔹 “안먹었어요” POST
+  /** “안먹었어요” 등록 → POST /api/meal/log 후 재조회 */
   const [skipPosting, setSkipPosting] = useState<string | null>(null);
   const handleMarkSkipped = async (mealType: string) => {
     try {
       setSkipPosting(mealType);
-      // 선택: 상위 콜백 먼저 호출하고 싶으면 주석 해제
-      // handleSkipMeal(mealType);
-
       const body = {
         foodId: 1,
         mealLogDate: effectiveDate,
@@ -203,28 +198,47 @@ const WhatIAteTab = ({
         carbohydrate: 0.0,
         protein: 0.0,
         fat: 0.0,
-        mealType: normalizeMealTypeForApi(mealType),  // 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACK'
+        mealType: normalizeMealTypeForApi(mealType),
       };
-
-      console.log('[WhatIAteTab] 안먹었어요 POST:', body);
-
-      await defaultFetch('/api/meal/log', {
-        method: 'POST',
-        body,
-      });
-
-      // 성공 시 즉시 리패치하여 카드에 체크 반영
+      await defaultFetch("/api/meal/log", { method: "POST", body });
       await refetchMealDay();
     } catch (e) {
-      console.error('[WhatIAteTab] 안먹었어요 등록 실패:', e);
-      // 필요하면 토스트 추가
+      console.error("[WhatIAteTab] 안먹었어요 등록 실패:", e);
     } finally {
       setSkipPosting(null);
     }
   };
 
+  /** 체중 저장: POST /api/meal/weight */
+  const [savingWeight, setSavingWeight] = useState(false);
+  const saveTodayWeight = useCallback(async () => {
+    try {
+      setSavingWeight(true);
+      await defaultFetch("/api/meal/weight", {
+        method: "POST",
+        body: {
+          date: effectiveDate,     // 'YYYY-MM-DD'
+          weight: Number(weight),  // ex) 64.2
+        },
+      });
+      // (선택) 상위 콜백이 있는 경우 함께 호출하고 싶다면 아래 주석 해제
+      // await Promise.resolve(handleWeightSave?.());
+      await refetchMealDay();
+    } catch (e: any) {
+      console.error("[WhatIAteTab] 체중 저장 실패:", e);
+      setApiError(e?.message ?? "체중 저장에 실패했습니다.");
+    } finally {
+      setSavingWeight(false);
+    }
+  }, [effectiveDate, weight, refetchMealDay /*, handleWeightSave */]);
+
+  /** 상세 이동 경로(일관화) */
+  const goDetail = (mealId: string) => {
+    navigate(`/record/meal/detail?type=${mealId}&date=${effectiveDate}`);
+  };
+
   return (
-      <div className="px-4 pt-6 pb-8 space-y-6" style={{ backgroundColor: '#fffff5' }}>
+      <div className="px-4 pt-6 pb-8 space-y-6" style={{ backgroundColor: "#fffff5" }}>
         {/* 체중 입력 카드 */}
         <Card className="shadow-sm border border-border/50 bg-gradient-to-r from-primary/5 to-secondary/10">
           <CardContent className="p-4">
@@ -234,6 +248,7 @@ const WhatIAteTab = ({
                 <p className="text-sm text-muted-foreground">매일 체중을 기록해보세요</p>
                 <p className="text-xs text-muted-foreground mt-1">기준일: {effectiveDate}</p>
               </div>
+
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
                   <Input
@@ -246,21 +261,25 @@ const WhatIAteTab = ({
                       max="500"
                       placeholder="65.5"
                       aria-label="오늘의 체중"
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleWeightSave(); }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveTodayWeight();
+                      }}
                   />
                   <span className="text-sm font-medium text-foreground">kg</span>
                 </div>
+
                 <Button
                     size="sm"
                     className="bg-primary hover:bg-primary/90 text-primary-foreground px-4"
-                    onClick={handleWeightSave}
-                    disabled={weightLoading}
+                    onClick={saveTodayWeight}
+                    disabled={weightLoading || savingWeight}
                     aria-label="저장"
                 >
-                  {weightLoading ? '저장중...' : '저장'}
+                  {weightLoading || savingWeight ? "저장중..." : "저장"}
                 </Button>
               </div>
             </div>
+
             {apiError && <p className="text-sm text-red-600 mt-2">불러오기 오류: {apiError}</p>}
           </CardContent>
         </Card>
@@ -287,10 +306,7 @@ const WhatIAteTab = ({
                         className="cursor-pointer hover:shadow-md transition-shadow border border-border/50"
                         onClick={() => {
                           handleMealCardClick(meal.id, status);
-                          // 원하시면 true(=filled)일 때만 상세 이동 유지:
-                          if (status === 'filled') {
-                            navigate(`/record/meal/detail?type=${meal.id}&date=${effectiveDate}`);
-                          }
+                          if (status === "filled") goDetail(meal.id);
                         }}
                     >
                       <CardContent className="p-4 text-center">
@@ -299,7 +315,7 @@ const WhatIAteTab = ({
                             <meal.icon size={24} />
                           </div>
 
-                          {/* ✅ 기록됨 배지: takeMeal이 null이 아니면 표시 (true/false 모두 기록됨) */}
+                          {/* 기록됨 배지: takeMeal이 null이 아니면 표시 (true/false 모두) */}
                           {meal.takeMeal !== null && meal.takeMeal !== undefined && (
                               <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
                                 <Check size={12} className="text-white" />
@@ -309,23 +325,18 @@ const WhatIAteTab = ({
 
                         <div className="text-foreground font-semibold text-sm mb-2">{meal.name}</div>
 
-                        {/* ===== 상태별 컨텐츠 분기 ===== */}
-                        {status === 'skipped' && (
-                            // 1) false → "안먹었어요"만
+                        {/* 상태별 컨텐츠 */}
+                        {status === "skipped" && (
                             <div className="py-4">
                               <p className="text-muted-foreground text-sm">안먹었어요</p>
                             </div>
                         )}
 
-                        {status === 'filled' && (
-                            // 2) true → "음식 등록" 버튼과 칼로리 표시
+                        {status === "filled" && (
                             <div className="space-y-2">
-                              {/* 총 칼로리 표시 */}
                               <div className="text-foreground font-bold text-lg">
                                 {meal.totalKcal.toLocaleString()} kcal
                               </div>
-
-                              {/* 음식 등록 버튼 */}
                               <Button
                                   size="sm"
                                   variant="outline"
@@ -333,7 +344,7 @@ const WhatIAteTab = ({
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleAddFood(meal.id);
-                                    navigate(toDetailPath(meal.id));
+                                    goDetail(meal.id);
                                   }}
                               >
                                 음식 등록
@@ -341,8 +352,7 @@ const WhatIAteTab = ({
                             </div>
                         )}
 
-                        {status === 'empty' && (
-                            // 3) null → "아직 기록이 없어요" + "음식 등록" + "안먹었어요"
+                        {status === "empty" && (
                             <div className="space-y-2">
                               <p className="text-muted-foreground text-xs mb-3">아직 기록이 없어요</p>
                               <div className="space-y-1">
@@ -353,7 +363,7 @@ const WhatIAteTab = ({
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleAddFood(meal.id);
-                                      navigate(toDetailPath(meal.id));
+                                      goDetail(meal.id);
                                     }}
                                 >
                                   음식 등록
@@ -368,12 +378,11 @@ const WhatIAteTab = ({
                                       await handleMarkSkipped(meal.id);
                                     }}
                                 >
-                                  {skipPosting === meal.id ? '등록중…' : '안먹었어요'}
+                                  {skipPosting === meal.id ? "등록중…" : "안먹었어요"}
                                 </Button>
                               </div>
                             </div>
                         )}
-                        {/* ===== /상태별 컨텐츠 분기 ===== */}
                       </CardContent>
                     </Card>
                 );
@@ -385,7 +394,7 @@ const WhatIAteTab = ({
         <div className="w-full">
           <Card
               className="border-none cursor-pointer transform hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl"
-              style={{ backgroundColor: '#c2d595' }}
+              style={{ backgroundColor: "#c2d595" }}
               onClick={() => handleWaterClick(effectiveDate, waterToShow)}
           >
             <CardContent className="p-6 text-center">
@@ -393,7 +402,6 @@ const WhatIAteTab = ({
                 <div className="text-blue-600">
                   <Droplets size={32} />
                 </div>
-                {/* 물 기록이 있을 때 체크 */}
                 {waterToShow > 0 && (
                     <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center shadow-sm">
                       <Check size={16} className="text-white" />
