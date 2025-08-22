@@ -1,9 +1,7 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import {Toaster as Sonner} from "@/components/ui/sonner";
+import {TooltipProvider} from "@/components/ui/tooltip";
+import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
+import {BrowserRouter, Route, Routes} from "react-router-dom";
 import Home from "./pages/Home";
 import MealRecord from "./pages/MealRecord";
 import MealDetail from "./pages/MealDetail";
@@ -17,7 +15,6 @@ import MyPage from "./pages/MyPage";
 import GroupPage from "./pages/GroupPage";
 import Navigation from "./components/layout/Navigation";
 import NotFound from "./pages/NotFound";
-import { ToastContainer } from "react-toastify";
 
 const queryClient = new QueryClient();
 
