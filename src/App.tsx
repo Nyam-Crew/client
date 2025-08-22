@@ -16,14 +16,14 @@ import MyPage from "./pages/MyPage";
 import GroupPage from "./pages/GroupPage";
 import Navigation from "./components/layout/Navigation";
 import NotFound from "./pages/NotFound";
+import { ToastContainer } from "react-toastify";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
+      <Sonner richColors position={"top-right"} closeButton />
       <BrowserRouter>
         <Navigation />
         <Routes>
