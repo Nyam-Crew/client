@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,11 +10,12 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { 
-  User, 
-  Settings, 
-  Award, 
-  Bookmark, 
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import {
+  User,
+  Settings,
+  Award,
+  Bookmark,
   Camera,
   Trophy,
   Star,
@@ -26,7 +28,9 @@ import {
   Edit,
   Check,
   FileText,
-  MessageSquare
+  MessageSquare,
+  LogOut,
+  UserX
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -40,12 +44,98 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
+import { defaultFetch } from '@/api/defaultFetch';
+
+// TypeScript interfaces for API responses
+interface MemberResponse {
+  memberId: number;
+  nickname: string;
+  email: string;
+  memberImg: string | null;
+  gender: string;
+  height: number;
+  weight: number;
+  age: number;
+  bmi: number;
+  bmr: number;
+  tdee: number;
+  targetWeight: number;
+  recommendedCalories: number;
+  activityLevel: string;
+  memberStatus: string;
+  createdDate: string;
+  modifiedDate: string;
+}
+
+interface MemberUpdateRequest {
+  memberId?: number;
+  nickname: string;
+  email: string;
+  memberImg?: string;
+  gender: string;
+  height: number;
+  weight: number;
+  targetWeight: number;
+  age: number;
+  activityLevel: string;
+}
+
+interface NicknameCheckResponse {
+  isDuplicate: boolean;
+}
+
+// Badge API response interfaces
+interface BadgeOwnershipDto {
+  id: number;
+  name: string;
+  description: string;
+  badgeImage: string;
+  isOwned: boolean;
+  createdDate: string;
+  acquiredAt: string | null;
+}
+
+interface CustomPageResponseDto<T> {
+  content: T[];
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+  totalElements: number;
+  isLast: boolean;
+}
+
+// Bookmark API response interfaces
+interface MyBookmarkListResponseDto {
+  boardId: number;
+  bookmarkId: number;
+  boardTitle: string;
+  boardContent: string;
+  boardAuthorNickname: string;
+  likeCount: number;
+  viewCount: number;
+  commentCount: number;
+  boardType: string;
+  bookmarkedAt: string;
+}
+
+// My Boards API response interfaces
+interface MyBoardsResponseDto {
+  boardId: number;
+  boardTitle: string;
+  boardContent: string;
+  boardAuthorNickname: string;
+  likeCount: number;
+  viewCount: number;
+  commentCount: number;
+  boardType: string;
+  createdDate: string;
+}
 
 // 멤버 정보 스키마
 const memberInfoSchema = z.object({
   nickname: z.string()
-    .min(2, '닉네임은 2글자 이상이어야 합니다')
-    .regex(/^[가-힣a-zA-Z0-9]+$/, '한글, 영문, 숫자만 사용 가능합니다'),
+  .min(2, '닉네임은 2글자 이상이어야 합니다')
+  .regex(/^[가-힣a-zA-Z0-9]+$/, '한글, 영문, 숫자만 사용 가능합니다'),
   email: z.string().email('올바른 이메일 형식이 아닙니다'),
   gender: z.enum(['male', 'female', 'none']),
   weight: z.string().regex(/^\d+$/, '숫자만 입력 가능합니다').min(1, '몸무게를 입력해주세요'),
@@ -67,33 +157,196 @@ const activityLevelMap = {
 };
 
 const MyPage = () => {
+  const navigate = useNavigate();
   const [profileImage, setProfileImage] = useState<string>('/public/placeholder.svg');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isNicknameChecked, setIsNicknameChecked] = useState(false);
   const [currentBadgePage, setCurrentBadgePage] = useState(1);
+  const [badgesData, setBadgesData] = useState<CustomPageResponseDto<BadgeOwnershipDto> | null>(null);
+  const [badgesLoading, setBadgesLoading] = useState(false);
   const [currentBookmarkPage, setCurrentBookmarkPage] = useState(1);
+  const [bookmarksData, setBookmarksData] = useState<CustomPageResponseDto<MyBookmarkListResponseDto> | null>(null);
+  const [bookmarksLoading, setBookmarksLoading] = useState(false);
   const [currentPostPage, setCurrentPostPage] = useState(1);
+  const [postsData, setPostsData] = useState<CustomPageResponseDto<MyBoardsResponseDto> | null>(null);
+  const [postsLoading, setPostsLoading] = useState(false);
   const [currentCommentPage, setCurrentCommentPage] = useState(1);
+
+  // API integration state
+  const [memberData, setMemberData] = useState<MemberResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [nicknameValidation, setNicknameValidation] = useState<{
+    isChecking: boolean;
+    isValid: boolean | null;
+    message: string;
+  }>({
+    isChecking: false,
+    isValid: null,
+    message: ''
+  });
+
   const { toast } = useToast();
 
+  // Initialize form first to avoid "Cannot access 'form' before initialization" error
   const form = useForm<MemberInfoForm>({
     resolver: zodResolver(memberInfoSchema),
     defaultValues: {
-      nickname: '김건강',
-      email: 'kimhealth@example.com',
+      nickname: '',
+      email: '',
       gender: 'male',
-      weight: '70',
-      height: '175',
-      age: '28',
+      weight: '',
+      height: '',
+      age: '',
       activityLevel: 'MODERATE',
-      targetWeight: '65',
+      targetWeight: '',
     },
   });
 
+  // API functions
+  const fetchMemberData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const data = await defaultFetch('/api/member/me');
+      setMemberData(data);
+
+      // Update form with fetched data
+      if (data) {
+        form.reset({
+          nickname: data.nickname,
+          email: data.email,
+          gender: data.gender === 'M' ? 'male' : data.gender === 'F' ? 'female' : 'none',
+          weight: data.weight.toString(),
+          height: data.height.toString(),
+          age: data.age.toString(),
+          activityLevel: data.activityLevel,
+          targetWeight: data.targetWeight.toString(),
+        });
+
+        if (data.memberImg) {
+          setProfileImage(data.memberImg);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch member data:', error);
+      toast({
+        title: "데이터 로딩 실패",
+        description: "회원 정보를 불러오는데 실패했습니다.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [form, toast]);
+
+  const checkNicknameDuplication = useCallback(async (nickname: string) => {
+    if (!nickname || nickname.length < 2) {
+      setNicknameValidation({
+        isChecking: false,
+        isValid: null,
+        message: ''
+      });
+      return;
+    }
+
+    try {
+      setNicknameValidation(prev => ({ ...prev, isChecking: true }));
+      const response: NicknameCheckResponse = await defaultFetch(`/api/member/check-nickname/${encodeURIComponent(nickname)}`);
+
+      const isValid = !response.isDuplicate;
+      setNicknameValidation({
+        isChecking: false,
+        isValid,
+        message: isValid ? '사용 가능한 닉네임입니다.' : '이미 사용 중인 닉네임입니다.'
+      });
+
+      setIsNicknameChecked(isValid);
+    } catch (error) {
+      console.error('Failed to check nickname:', error);
+      setNicknameValidation({
+        isChecking: false,
+        isValid: null,
+        message: '닉네임 확인 중 오류가 발생했습니다.'
+      });
+    }
+  }, []);
+
+  // 로그아웃 및 회원 탈퇴 핸들러
+  const handleLogout = async () => {
+    try {
+      await defaultFetch('/api/auth/logout', {
+        method: 'POST'
+      });
+
+      // Remove tokens from localStorage
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+
+      toast({
+        title: "로그아웃 완료",
+        description: "성공적으로 로그아웃되었습니다.",
+      });
+
+      // Redirect to home page
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout failed:', error);
+      toast({
+        title: "로그아웃 실패",
+        description: "로그아웃 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    // 실제로는 API 호출하여 회원 탈퇴 처리
+    console.log('회원 탈퇴 처리');
+    toast({
+      title: "회원 탈퇴 완료",
+      description: "계정이 성공적으로 삭제되었습니다.",
+      variant: "destructive"
+    });
+  };
+
   const currentNickname = form.watch('nickname');
 
-  const onSubmit = (data: MemberInfoForm) => {
-    if (!isNicknameChecked) {
+  // Load member data on mount
+  useEffect(() => {
+    fetchMemberData();
+  }, [fetchMemberData]);
+
+  // Debounced nickname validation
+  useEffect(() => {
+    if (!currentNickname || currentNickname === memberData?.nickname) {
+      setNicknameValidation({
+        isChecking: false,
+        isValid: null,
+        message: ''
+      });
+      setIsNicknameChecked(true); // Original nickname is valid
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      checkNicknameDuplication(currentNickname);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [currentNickname, memberData?.nickname, checkNicknameDuplication]);
+
+  const onSubmit = async (data: MemberInfoForm) => {
+    if (!memberData) {
+      toast({
+        title: "오류",
+        description: "회원 정보를 불러오지 못했습니다.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (currentNickname !== memberData.nickname && !isNicknameChecked) {
       toast({
         title: "닉네임 중복체크가 필요합니다",
         description: "닉네임 중복체크를 먼저 진행해주세요.",
@@ -101,19 +354,72 @@ const MyPage = () => {
       });
       return;
     }
-    
-    console.log('멤버 정보 수정:', data);
-    setIsEditMode(false);
-    setIsNicknameChecked(false);
-    toast({
-      title: "프로필이 수정되었습니다",
-      description: "정보가 성공적으로 업데이트되었습니다.",
-    });
+
+    try {
+      setIsSubmitting(true);
+
+      const updateRequest: MemberUpdateRequest = {
+        memberId: memberData.memberId,
+        nickname: data.nickname,
+        email: data.email,
+        memberImg: memberData.memberImg, // Include memberImg from GET /api/member/me response
+        gender: data.gender === 'male' ? 'M' : data.gender === 'female' ? 'F' : 'U',
+        height: parseFloat(data.height),
+        weight: parseFloat(data.weight),
+        targetWeight: parseFloat(data.targetWeight),
+        age: parseInt(data.age),
+        activityLevel: data.activityLevel,
+      };
+
+      // Create FormData for multipart request
+      const formData = new FormData();
+      
+      // Create a Blob with the correct content type for the JSON part
+      const requestBlob = new Blob([JSON.stringify(updateRequest)], {
+        type: 'application/json'
+      });
+      formData.append('request', requestBlob);
+
+      // If there's a profile image file, add it
+      if (selectedFile) {
+        formData.append('file', selectedFile);
+        console.log('[DEBUG_LOG] Adding file to FormData:', selectedFile.name, selectedFile.type, selectedFile.size);
+      }
+
+      const updatedMember = await defaultFetch('/api/member', {
+        method: 'PUT',
+        body: formData,
+        headers: {}
+      });
+
+      setMemberData(updatedMember);
+      setIsEditMode(false);
+      setIsNicknameChecked(false);
+      setSelectedFile(null); // Clear selected file after successful update
+
+      toast({
+        title: "프로필이 수정되었습니다",
+        description: "정보가 성공적으로 업데이트되었습니다.",
+      });
+    } catch (error) {
+      console.error('Failed to update member:', error);
+      toast({
+        title: "수정 실패",
+        description: "프로필 수정 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      // Store the actual File object for upload
+      setSelectedFile(file);
+      
+      // Create preview image
       const reader = new FileReader();
       reader.onload = (e) => {
         setProfileImage(e.target?.result as string);
@@ -122,195 +428,109 @@ const MyPage = () => {
     }
   };
 
-  const checkNicknameDuplicate = async () => {
-    // 실제로는 API 호출
-    const isAvailable = true; // 임시로 성공으로 설정
-    
-    if (isAvailable) {
-      setIsNicknameChecked(true);
+  // Fetch badges data from API
+  const fetchBadges = useCallback(async (page: number = 0) => {
+    setBadgesLoading(true);
+    try {
+      console.log(`[DEBUG_LOG] Fetching badges for page: ${page}`);
+      const data: CustomPageResponseDto<BadgeOwnershipDto> = await defaultFetch(`/api/member/my-badges?page=${page}&size=6&sort=createdDate,desc`);
+      console.log('[DEBUG_LOG] Badges API response:', data);
+      setBadgesData(data);
+    } catch (error) {
+      console.error('[DEBUG_LOG] Error fetching badges:', error);
       toast({
-        title: "사용 가능한 닉네임입니다",
-        description: "해당 닉네임을 사용하실 수 있습니다.",
+        title: "오류",
+        description: "뱃지 정보를 불러오는데 실패했습니다.",
+        variant: "destructive",
       });
-    } else {
-      setIsNicknameChecked(false);
-      toast({
-        title: "이미 사용 중인 닉네임입니다",
-        description: "다른 닉네임을 입력해주세요.",
-        variant: "destructive"
-      });
+    } finally {
+      setBadgesLoading(false);
     }
+  }, [toast]);
+
+  // Fetch badges when component mounts or page changes
+  useEffect(() => {
+    fetchBadges(currentBadgePage - 1); // Convert to 0-based page number
+  }, [fetchBadges, currentBadgePage]);
+
+  // Fetch bookmarks data from API
+  const fetchBookmarks = useCallback(async (page: number = 0) => {
+    setBookmarksLoading(true);
+    try {
+      console.log(`[DEBUG_LOG] Fetching bookmarks for page: ${page}`);
+      const data: CustomPageResponseDto<MyBookmarkListResponseDto> = await defaultFetch(`/api/bookmark/my-bookmarks?page=${page}&size=10&sort=createdDate,desc`);
+      console.log('[DEBUG_LOG] Bookmarks API response:', data);
+      setBookmarksData(data);
+    } catch (error) {
+      console.error('[DEBUG_LOG] Error fetching bookmarks:', error);
+      toast({
+        title: "오류",
+        description: "북마크 정보를 불러오는데 실패했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setBookmarksLoading(false);
+    }
+  }, [toast]);
+
+  // Fetch bookmarks when component mounts or page changes
+  useEffect(() => {
+    fetchBookmarks(currentBookmarkPage - 1); // Convert to 0-based page number
+  }, [fetchBookmarks, currentBookmarkPage]);
+
+  // Fetch my boards data from API
+  const fetchMyBoards = useCallback(async (page: number = 0) => {
+    setPostsLoading(true);
+    try {
+      console.log(`[DEBUG_LOG] Fetching my boards for page: ${page}`);
+      const data: CustomPageResponseDto<MyBoardsResponseDto> = await defaultFetch(`/api/member/my-boards?page=${page}&size=10&sort=createdDate,desc`);
+      console.log('[DEBUG_LOG] My boards API response:', data);
+      setPostsData(data);
+    } catch (error) {
+      console.error('[DEBUG_LOG] Error fetching my boards:', error);
+      toast({
+        title: "오류",
+        description: "내 게시글 정보를 불러오는데 실패했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setPostsLoading(false);
+    }
+  }, [toast]);
+
+  // Fetch my boards when component mounts or page changes
+  useEffect(() => {
+    fetchMyBoards(currentPostPage - 1); // Convert to 0-based page number
+  }, [fetchMyBoards, currentPostPage]);
+
+  // Helper function to get icon component for badge
+  const getBadgeIcon = (badgeName: string) => {
+    // Map badge names to icons - you can customize this mapping based on your badge types
+    const iconMap: { [key: string]: any } = {
+      '첫 시작': Star,
+      '일주일 연속': Trophy,
+      '한달 마스터': Crown,
+      '팀플레이어': Heart,
+      '목표 달성': Target,
+      '번개같이': Zap,
+      '물 마시기': Star,
+      '운동왕': Trophy,
+      '영양사': Heart,
+      '규칙적': Target,
+      '건강지킴이': Crown,
+      '마라톤': Zap,
+    };
+    return iconMap[badgeName] || Award; // Default to Award icon
   };
 
-  // 닉네임이 변경되면 중복체크 상태 초기화
-  const handleNicknameChange = (value: string) => {
-    setIsNicknameChecked(false);
-    form.setValue('nickname', value);
-  };
 
-  // 뱃지 목록 데이터 (더 많은 뱃지 추가)
-  const badges = [
-    { id: 1, name: '첫 시작', icon: Star, description: '첫 식단을 기록했어요', earned: true, earnedDate: '2024-01-15' },
-    { id: 2, name: '일주일 연속', icon: Trophy, description: '7일 연속 기록 달성', earned: true, earnedDate: '2024-01-22' },
-    { id: 3, name: '한달 마스터', icon: Crown, description: '30일 연속 기록 달성', earned: false },
-    { id: 4, name: '팀플레이어', icon: Heart, description: '팀 챌린지 참여', earned: true, earnedDate: '2024-01-20' },
-    { id: 5, name: '목표 달성', icon: Target, description: '첫 번째 목표 달성', earned: true, earnedDate: '2024-01-18' },
-    { id: 6, name: '번개같이', icon: Zap, description: '빠른 기록 달성', earned: false },
-    { id: 7, name: '물 마시기', icon: Star, description: '물 마시기 목표 달성', earned: true, earnedDate: '2024-01-10' },
-    { id: 8, name: '운동왕', icon: Trophy, description: '운동 목표 달성', earned: false },
-    { id: 9, name: '영양사', icon: Heart, description: '영양 균형 달성', earned: true, earnedDate: '2024-01-12' },
-    { id: 10, name: '규칙적', icon: Target, description: '규칙적인 식사', earned: false },
-    { id: 11, name: '건강지킴이', icon: Crown, description: '건강 목표 달성', earned: true, earnedDate: '2024-01-25' },
-    { id: 12, name: '마라톤', icon: Zap, description: '장기간 목표 달성', earned: false },
-  ];
+  // 북마크 페이징 - API 데이터 사용
+  const totalBookmarkPages = bookmarksData?.totalPages || 0;
+  const currentBookmarks = bookmarksData?.content || [];
 
-  // 뱃지 페이징 (한 페이지에 6개, 한 줄에 2개)
-  const badgesPerPage = 6;
-  const totalBadgePages = Math.ceil(badges.length / badgesPerPage);
-  const startBadgeIndex = (currentBadgePage - 1) * badgesPerPage;
-  const currentBadges = badges.slice(startBadgeIndex, startBadgeIndex + badgesPerPage);
-
-  // 북마크 게시글 데이터 (더 많은 게시글 추가)
-  const bookmarkedPosts = [
-    {
-      id: 1,
-      title: '건강한 아침 식단 레시피 모음',
-      author: '김영양',
-      category: '레시피',
-      likes: 124,
-      views: 1234,
-      comments: 56,
-      bookmarkedDate: '2024-01-23',
-      thumbnail: '/public/placeholder.svg'
-    },
-    {
-      id: 2,
-      title: '다이어트 중에도 맛있게! 저칼로리 간식',
-      author: '이헬시',
-      category: '다이어트',
-      likes: 89,
-      views: 890,
-      comments: 32,
-      bookmarkedDate: '2024-01-22',
-      thumbnail: '/public/placeholder.svg'
-    },
-    {
-      id: 3,
-      title: '운동 후 단백질 보충 꿀팁',
-      author: '박건강',
-      category: '운동',
-      likes: 156,
-      views: 2100,
-      comments: 78,
-      bookmarkedDate: '2024-01-21',
-      thumbnail: '/public/placeholder.svg'
-    },
-    {
-      id: 4,
-      title: '간단한 홈트레이닝 루틴',
-      author: '운동맨',
-      category: '운동',
-      likes: 234,
-      views: 1800,
-      comments: 45,
-      bookmarkedDate: '2024-01-20',
-      thumbnail: '/public/placeholder.svg'
-    },
-    {
-      id: 5,
-      title: '체중감량을 위한 식단 계획',
-      author: '다이어터',
-      category: '다이어트',
-      likes: 178,
-      views: 1567,
-      comments: 67,
-      bookmarkedDate: '2024-01-19',
-      thumbnail: '/public/placeholder.svg'
-    },
-    {
-      id: 6,
-      title: '건강한 간식 만들기',
-      author: '요리왕',
-      category: '레시피',
-      likes: 145,
-      views: 1234,
-      comments: 34,
-      bookmarkedDate: '2024-01-18',
-      thumbnail: '/public/placeholder.svg'
-    },
-    {
-      id: 7,
-      title: '물 많이 마시는 방법',
-      author: '수분왕',
-      category: '건강',
-      likes: 92,
-      views: 876,
-      comments: 23,
-      bookmarkedDate: '2024-01-17',
-      thumbnail: '/public/placeholder.svg'
-    },
-    {
-      id: 8,
-      title: '영양소 균형 맞추기',
-      author: '영양사',
-      category: '영양',
-      likes: 198,
-      views: 1654,
-      comments: 89,
-      bookmarkedDate: '2024-01-16',
-      thumbnail: '/public/placeholder.svg'
-    },
-    {
-      id: 9,
-      title: '스트레스 관리와 식단',
-      author: '멘탈케어',
-      category: '건강',
-      likes: 167,
-      views: 1345,
-      comments: 56,
-      bookmarkedDate: '2024-01-15',
-      thumbnail: '/public/placeholder.svg'
-    },
-    {
-      id: 10,
-      title: '근력운동 기초 가이드',
-      author: '트레이너',
-      category: '운동',
-      likes: 267,
-      views: 2345,
-      comments: 123,
-      bookmarkedDate: '2024-01-14',
-      thumbnail: '/public/placeholder.svg'
-    },
-    {
-      id: 11,
-      title: '건강한 수면과 다이어트',
-      author: '수면전문가',
-      category: '건강',
-      likes: 134,
-      views: 1098,
-      comments: 45,
-      bookmarkedDate: '2024-01-13',
-      thumbnail: '/public/placeholder.svg'
-    },
-    {
-      id: 12,
-      title: '계절별 제철 음식 활용법',
-      author: '제철요리사',
-      category: '레시피',
-      likes: 189,
-      views: 1567,
-      comments: 67,
-      bookmarkedDate: '2024-01-12',
-      thumbnail: '/public/placeholder.svg'
-    }
-  ];
-
-  // 북마크 페이징
-  const bookmarksPerPage = 10;
-  const totalBookmarkPages = Math.ceil(bookmarkedPosts.length / bookmarksPerPage);
-  const startBookmarkIndex = (currentBookmarkPage - 1) * bookmarksPerPage;
-  const currentBookmarks = bookmarkedPosts.slice(startBookmarkIndex, startBookmarkIndex + bookmarksPerPage);
+  // 내 게시글 페이징 - API 데이터 사용
+  const totalPostPages = postsData?.totalPages || 0;
+  const currentPosts = postsData?.content || [];
 
   // 내가 작성한 게시글 데이터
   const userPosts = [
@@ -498,11 +718,6 @@ const MyPage = () => {
     }
   ];
 
-  // 게시글 페이징
-  const postsPerPage = 10;
-  const totalPostPages = Math.ceil(userPosts.length / postsPerPage);
-  const startPostIndex = (currentPostPage - 1) * postsPerPage;
-  const currentPosts = userPosts.slice(startPostIndex, startPostIndex + postsPerPage);
 
   // 댓글 페이징
   const commentsPerPage = 10;
@@ -510,742 +725,784 @@ const MyPage = () => {
   const startCommentIndex = (currentCommentPage - 1) * commentsPerPage;
   const currentComments = userComments.slice(startCommentIndex, startCommentIndex + commentsPerPage);
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-foreground mb-2">마이페이지</h1>
-          <p className="text-muted-foreground">내 정보를 관리하고 활동을 확인해보세요</p>
+  // Show loading state while fetching member data
+  if (isLoading) {
+    return (
+        <div className="min-h-screen bg-background">
+          <div className="max-w-4xl mx-auto p-6">
+            <div className="mb-6">
+              <h1 className="text-3xl font-bold text-foreground mb-2">마이페이지</h1>
+              <p className="text-muted-foreground">내 정보를 관리하고 활동을 확인해보세요</p>
+            </div>
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">회원 정보를 불러오는 중...</p>
+              </div>
+            </div>
+          </div>
         </div>
+    );
+  }
 
-        <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="profile" className="flex items-center gap-2">
-              <User size={16} />
-              <span className="hidden sm:inline">프로필</span>
-              <span className="sm:hidden">프로필</span>
-            </TabsTrigger>
-            <TabsTrigger value="badges" className="flex items-center gap-2">
-              <Award size={16} />
-              <span className="hidden sm:inline">나의 뱃지</span>
-              <span className="sm:hidden">뱃지</span>
-            </TabsTrigger>
-            <TabsTrigger value="bookmarks" className="flex items-center gap-2">
-              <Bookmark size={16} />
-              <span className="hidden sm:inline">북마크</span>
-              <span className="sm:hidden">북마크</span>
-            </TabsTrigger>
-            <TabsTrigger value="posts" className="flex items-center gap-2">
-              <FileText size={16} />
-              <span className="hidden sm:inline">내 게시글</span>
-              <span className="sm:hidden">게시글</span>
-            </TabsTrigger>
-            <TabsTrigger value="comments" className="flex items-center gap-2">
-              <MessageSquare size={16} />
-              <span className="hidden sm:inline">내 댓글</span>
-              <span className="sm:hidden">댓글</span>
-            </TabsTrigger>
-          </TabsList>
+  // Show error state if member data failed to load
+  if (!memberData) {
+    return (
+        <div className="min-h-screen bg-background">
+          <div className="max-w-4xl mx-auto p-6">
+            <div className="mb-6">
+              <h1 className="text-3xl font-bold text-foreground mb-2">마이페이지</h1>
+              <p className="text-muted-foreground">내 정보를 관리하고 활동을 확인해보세요</p>
+            </div>
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <p className="text-muted-foreground mb-4">회원 정보를 불러올 수 없습니다.</p>
+                <Button onClick={fetchMemberData}>다시 시도</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+    );
+  }
 
-          {/* 프로필 탭 */}
-          <TabsContent value="profile">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  {isEditMode ? <Edit size={20} /> : <User size={20} />}
-                  {isEditMode ? '프로필 정보 수정' : '프로필 정보'}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* 프로필 사진 */}
-                <div className="flex flex-col items-center gap-4">
-                  <div className="relative">
-                    <Avatar className="w-24 h-24">
-                      <AvatarImage src={profileImage} alt="프로필 사진" />
-                      <AvatarFallback>김건강</AvatarFallback>
-                    </Avatar>
-                    {isEditMode && (
-                      <label htmlFor="profile-image" className="absolute bottom-0 right-0 p-1 bg-primary rounded-full cursor-pointer hover:bg-primary/80 transition-colors">
-                        <Camera size={16} className="text-primary-foreground" />
-                      </label>
+  return (
+      <div className="min-h-screen bg-background">
+        <div className="max-w-4xl mx-auto p-6">
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-foreground mb-2">마이페이지</h1>
+            <p className="text-muted-foreground">내 정보를 관리하고 활동을 확인해보세요</p>
+          </div>
+
+          <Tabs defaultValue="profile" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="profile" className="flex items-center gap-2">
+                <User size={16} />
+                <span className="hidden sm:inline">프로필</span>
+                <span className="sm:hidden">프로필</span>
+              </TabsTrigger>
+              <TabsTrigger value="badges" className="flex items-center gap-2">
+                <Award size={16} />
+                <span className="hidden sm:inline">나의 뱃지</span>
+                <span className="sm:hidden">뱃지</span>
+              </TabsTrigger>
+              <TabsTrigger value="bookmarks" className="flex items-center gap-2">
+                <Bookmark size={16} />
+                <span className="hidden sm:inline">북마크</span>
+                <span className="sm:hidden">북마크</span>
+              </TabsTrigger>
+              <TabsTrigger value="posts" className="flex items-center gap-2">
+                <FileText size={16} />
+                <span className="hidden sm:inline">내 게시글</span>
+                <span className="sm:hidden">게시글</span>
+              </TabsTrigger>
+            </TabsList>
+
+            {/* 프로필 탭 */}
+            <TabsContent value="profile">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    {isEditMode ? <Edit size={20} /> : <User size={20} />}
+                    {isEditMode ? '프로필 정보 수정' : '프로필 정보'}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* 프로필 사진 */}
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="relative">
+                      <Avatar className="w-24 h-24">
+                        <AvatarImage src={profileImage} alt="프로필 사진" />
+                        <AvatarFallback>-</AvatarFallback>
+                      </Avatar>
+                      {isEditMode && (
+                          <label htmlFor="profile-image" className="absolute bottom-0 right-0 p-1 bg-primary rounded-full cursor-pointer hover:bg-primary/80 transition-colors">
+                            <Camera size={16} className="text-primary-foreground" />
+                          </label>
+                      )}
+                      <input
+                          id="profile-image"
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleImageUpload}
+                      />
+                    </div>
+
+                    {/* 닉네임을 프로필 사진 바로 아래 중앙에 표시 */}
+                    {!isEditMode && (
+                        <div className="text-center">
+                          <h2 className="text-xl font-semibold text-foreground">
+                            {form.getValues('nickname')}
+                          </h2>
+                        </div>
                     )}
-                    <input
-                      id="profile-image"
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleImageUpload}
-                    />
+
+                    {isEditMode && <p className="text-sm text-muted-foreground">프로필 사진을 변경하려면 클릭하세요</p>}
                   </div>
-                  
-                  {/* 닉네임을 프로필 사진 바로 아래 중앙에 표시 */}
-                  {!isEditMode && (
-                    <div className="text-center">
-                      <h2 className="text-xl font-semibold text-foreground">
-                        {form.getValues('nickname')}
-                      </h2>
-                    </div>
-                  )}
-                  
-                  {isEditMode && <p className="text-sm text-muted-foreground">프로필 사진을 변경하려면 클릭하세요</p>}
-                </div>
 
-                {isEditMode ? (
-                  /* 수정 모드 */
-                  <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                      <FormField
-                        control={form.control}
-                        name="nickname"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>닉네임</FormLabel>
-                            <div className="flex gap-2">
-                              <FormControl className="flex-1">
-                                <Input 
-                                  placeholder="닉네임을 입력하세요" 
-                                  {...field}
-                                  onChange={(e) => handleNicknameChange(e.target.value)}
-                                />
-                              </FormControl>
-                              <Button 
-                                type="button" 
-                                variant="outline" 
-                                onClick={checkNicknameDuplicate}
-                                disabled={!currentNickname || currentNickname.length < 2}
-                              >
-                                중복체크
-                              </Button>
-                            </div>
-                            <FormMessage />
-                            {isNicknameChecked && (
-                              <p className="text-sm text-green-600 flex items-center gap-1">
-                                <Check size={14} />
-                                사용 가능한 닉네임입니다
-                              </p>
-                            )}
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="email"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>이메일</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="이메일" 
-                                {...field} 
-                                disabled
-                                className="bg-muted"
-                              />
-                            </FormControl>
-                            <p className="text-xs text-muted-foreground">이메일은 수정할 수 없습니다</p>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="gender"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>성별</FormLabel>
-                            <FormControl>
-                              <RadioGroup
-                                onValueChange={field.onChange}
-                                value={field.value}
-                                className="flex gap-6"
-                              >
-                                <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="male" id="male" />
-                                  <Label htmlFor="male">남성</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="female" id="female" />
-                                  <Label htmlFor="female">여성</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  <RadioGroupItem value="none" id="none" />
-                                  <Label htmlFor="none">없음</Label>
-                                </div>
-                               </RadioGroup>
-                             </FormControl>
-                             <FormMessage />
-                           </FormItem>
-                         )}
-                       />
-
-                      <FormField
-                        control={form.control}
-                        name="height"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>키 (cm)</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="number" 
-                                placeholder="175" 
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="weight"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>몸무게 (kg)</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="number" 
-                                placeholder="70" 
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="age"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>나이</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="number" 
-                                placeholder="28" 
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="targetWeight"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>목표체중 (kg)</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="number" 
-                                placeholder="65" 
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="activityLevel"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>활동레벨</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger className="bg-background">
-                                  <SelectValue placeholder="활동레벨을 선택하세요" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent className="bg-background border-border z-50">
-                                {Object.entries(activityLevelMap).map(([key, value]) => (
-                                  <SelectItem key={key} value={key}>
-                                    {value}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <div className="flex gap-2 pt-4">
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          onClick={() => {
-                            setIsEditMode(false);
-                            setIsNicknameChecked(false);
-                          }}
-                          className="flex-1"
-                        >
-                          취소
-                        </Button>
-                        <Button 
-                          type="submit" 
-                          className="flex-1"
-                          disabled={!isNicknameChecked}
-                        >
-                          수정 완료
-                        </Button>
-                      </div>
-                    </form>
-                  </Form>
-                ) : (
-                  /* 조회 모드 */
-                  <div className="space-y-4">
-                    <div className="space-y-4">
-                      
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">이메일</Label>
-                        <div className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
-                          {form.getValues('email')}
-                        </div>
-                      </div>
-                      
-                       <div>
-                         <Label className="text-sm font-medium text-muted-foreground">성별</Label>
-                         <div className="mt-2">
-                           <RadioGroup
-                             value={form.getValues('gender')}
-                             disabled
-                             className="flex gap-6"
-                           >
-                             <div className="flex items-center space-x-2">
-                               <RadioGroupItem value="male" id="male-read" disabled />
-                               <Label htmlFor="male-read" className="text-muted-foreground">남성</Label>
-                             </div>
-                             <div className="flex items-center space-x-2">
-                               <RadioGroupItem value="female" id="female-read" disabled />
-                               <Label htmlFor="female-read" className="text-muted-foreground">여성</Label>
-                             </div>
-                             <div className="flex items-center space-x-2">
-                               <RadioGroupItem value="none" id="none-read" disabled />
-                               <Label htmlFor="none-read" className="text-muted-foreground">없음</Label>
-                             </div>
-                           </RadioGroup>
-                         </div>
-                       </div>
-                      
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">나이</Label>
-                        <div className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
-                          {form.getValues('age')}세
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">활동레벨</Label>
-                        <div className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
-                          {activityLevelMap[form.getValues('activityLevel') as keyof typeof activityLevelMap]}
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">키</Label>
-                        <div className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
-                          {form.getValues('height')}cm
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">현재 몸무게</Label>
-                        <div className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
-                          {form.getValues('weight')}kg
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <Label className="text-sm font-medium text-muted-foreground">목표 몸무게</Label>
-                        <div className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
-                          {form.getValues('targetWeight')}kg
-                        </div>
-                      </div>
-                    </div>
-
-                    <Button 
-                      onClick={() => setIsEditMode(true)}
-                      className="w-full mt-6"
-                    >
-                      정보수정하기
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* 뱃지 탭 */}
-          <TabsContent value="badges">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Award size={20} />
-                  나의 뱃지 컬렉션
-                </CardTitle>
-                <p className="text-muted-foreground">
-                  획득한 뱃지: {badges.filter(badge => badge.earned).length}/{badges.length}
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {currentBadges.map((badge) => {
-                    const IconComponent = badge.icon;
-                    return (
-                      <Card 
-                        key={badge.id} 
-                        className={`relative transition-all hover:scale-105 hover:shadow-lg ${
-                          badge.earned 
-                            ? 'bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20' 
-                            : 'bg-muted/30 opacity-60'
-                        }`}
-                      >
-                        <CardContent className="p-4 text-center">
-                          <div className={`w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center transition-all ${
-                            badge.earned 
-                              ? 'bg-primary text-primary-foreground shadow-lg' 
-                              : 'bg-muted text-muted-foreground'
-                          }`}>
-                            <IconComponent size={24} />
-                          </div>
-                          <h3 className="font-semibold mb-1">{badge.name}</h3>
-                          <p className="text-sm text-muted-foreground mb-2">{badge.description}</p>
-                          {badge.earned ? (
-                            <Badge variant="default" className="text-xs">
-                              {badge.earnedDate} 획득
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-xs">
-                              미획득
-                            </Badge>
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-
-                {/* 뱃지 페이징 */}
-                {totalBadgePages > 1 && (
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious 
-                          onClick={() => setCurrentBadgePage(Math.max(1, currentBadgePage - 1))}
-                          className={currentBadgePage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                        />
-                      </PaginationItem>
-                      {Array.from({ length: totalBadgePages }, (_, i) => i + 1).map((page) => (
-                        <PaginationItem key={page}>
-                          <PaginationLink
-                            onClick={() => setCurrentBadgePage(page)}
-                            isActive={page === currentBadgePage}
-                            className="cursor-pointer"
-                          >
-                            {page}
-                          </PaginationLink>
-                        </PaginationItem>
-                      ))}
-                      <PaginationItem>
-                        <PaginationNext 
-                          onClick={() => setCurrentBadgePage(Math.min(totalBadgePages, currentBadgePage + 1))}
-                          className={currentBadgePage === totalBadgePages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* 북마크 탭 */}
-          <TabsContent value="bookmarks">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bookmark size={20} />
-                  북마크한 게시글
-                </CardTitle>
-                <p className="text-muted-foreground">
-                  총 {bookmarkedPosts.length}개의 게시글을 북마크했어요
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  {currentBookmarks.map((post) => (
-                    <Card key={post.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                      <CardContent className="p-4">
-                        <div className="flex gap-4">
-                          <div className="w-16 h-16 bg-muted rounded-lg flex-shrink-0">
-                            <img 
-                              src={post.thumbnail} 
-                              alt={post.title}
-                              className="w-full h-full object-cover rounded-lg"
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between mb-2">
-                              <h3 className="font-medium line-clamp-1">{post.title}</h3>
-                              <Bookmark className="text-primary flex-shrink-0 ml-2" size={16} />
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                              <span>{post.author}</span>
-                              <span>•</span>
-                              <Badge variant="secondary" className="text-xs">{post.category}</Badge>
-                            </div>
-                            <div className="flex items-center justify-between text-xs text-muted-foreground">
-                              <div className="flex items-center gap-4">
-                                <span className="flex items-center gap-1">
-                                  <Heart size={12} className="text-red-500" />
-                                  {post.likes.toLocaleString()}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Eye size={12} className="text-blue-500" />
-                                  {post.views.toLocaleString()}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <MessageCircle size={12} className="text-green-500" />
-                                  {post.comments}
-                                </span>
-                              </div>
-                              <span>{post.bookmarkedDate} 저장</span>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-
-                {/* 북마크 페이징 */}
-                {totalBookmarkPages > 1 && (
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious 
-                          onClick={() => setCurrentBookmarkPage(Math.max(1, currentBookmarkPage - 1))}
-                          className={currentBookmarkPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                        />
-                      </PaginationItem>
-                      {Array.from({ length: totalBookmarkPages }, (_, i) => i + 1).map((page) => (
-                        <PaginationItem key={page}>
-                          <PaginationLink
-                            onClick={() => setCurrentBookmarkPage(page)}
-                            isActive={page === currentBookmarkPage}
-                            className="cursor-pointer"
-                          >
-                            {page}
-                          </PaginationLink>
-                        </PaginationItem>
-                      ))}
-                      <PaginationItem>
-                        <PaginationNext 
-                          onClick={() => setCurrentBookmarkPage(Math.min(totalBookmarkPages, currentBookmarkPage + 1))}
-                          className={currentBookmarkPage === totalBookmarkPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* 내가 작성한 게시글 탭 */}
-          <TabsContent value="posts">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText size={20} />
-                  내가 작성한 게시글
-                </CardTitle>
-                <p className="text-muted-foreground">
-                  총 {userPosts.length}개의 게시글을 작성했어요
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {currentPosts.length > 0 ? (
-                  <div className="space-y-4">
-                    {currentPosts.map((post) => (
-                      <Card key={post.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                        <CardContent className="p-4">
-                          <div className="flex gap-4">
-                            <div className="w-16 h-16 bg-muted rounded-lg flex-shrink-0 overflow-hidden">
-                              {post.thumbnail ? (
-                                <img 
-                                  src={post.thumbnail} 
-                                  alt={post.title}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <div className="w-full h-full bg-gradient-to-br from-muted to-muted-foreground/20 flex items-center justify-center">
-                                  <FileText size={20} className="text-muted-foreground" />
-                                </div>
+                  {isEditMode ? (
+                      /* 수정 모드 */
+                      <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                          <FormField
+                              control={form.control}
+                              name="nickname"
+                              render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>닉네임</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                          placeholder="닉네임을 입력하세요"
+                                          {...field}
+                                          disabled={isLoading}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                    {nicknameValidation.isChecking && (
+                                        <p className="text-sm text-muted-foreground">
+                                          닉네임 확인 중...
+                                        </p>
+                                    )}
+                                    {nicknameValidation.isValid === true && (
+                                        <p className="text-sm text-green-600 flex items-center gap-1">
+                                          <Check size={14} />
+                                          {nicknameValidation.message}
+                                        </p>
+                                    )}
+                                    {nicknameValidation.isValid === false && (
+                                        <p className="text-sm text-red-600">
+                                          {nicknameValidation.message}
+                                        </p>
+                                    )}
+                                  </FormItem>
                               )}
+                          />
+
+                          <FormField
+                              control={form.control}
+                              name="email"
+                              render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>이메일</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                          placeholder="이메일"
+                                          {...field}
+                                          disabled
+                                          className="bg-muted"
+                                      />
+                                    </FormControl>
+                                    <p className="text-xs text-muted-foreground">이메일은 수정할 수 없습니다</p>
+                                  </FormItem>
+                              )}
+                          />
+
+                          <FormField
+                              control={form.control}
+                              name="gender"
+                              render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>성별</FormLabel>
+                                    <FormControl>
+                                      <RadioGroup
+                                          onValueChange={field.onChange}
+                                          value={field.value}
+                                          className="flex gap-6"
+                                      >
+                                        <div className="flex items-center space-x-2">
+                                          <RadioGroupItem value="male" id="male" />
+                                          <Label htmlFor="male">남성</Label>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                          <RadioGroupItem value="female" id="female" />
+                                          <Label htmlFor="female">여성</Label>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                          <RadioGroupItem value="none" id="none" />
+                                          <Label htmlFor="none">없음</Label>
+                                        </div>
+                                      </RadioGroup>
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                              )}
+                          />
+
+                          <FormField
+                              control={form.control}
+                              name="height"
+                              render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>키 (cm)</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                          type="number"
+                                          placeholder="175"
+                                          {...field}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                              )}
+                          />
+
+                          <FormField
+                              control={form.control}
+                              name="weight"
+                              render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>몸무게 (kg)</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                          type="number"
+                                          placeholder="70"
+                                          {...field}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                              )}
+                          />
+
+                          <FormField
+                              control={form.control}
+                              name="age"
+                              render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>나이</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                          type="number"
+                                          placeholder="28"
+                                          {...field}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                              )}
+                          />
+
+                          <FormField
+                              control={form.control}
+                              name="targetWeight"
+                              render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>목표체중 (kg)</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                          type="number"
+                                          placeholder="65"
+                                          {...field}
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                              )}
+                          />
+
+                          <FormField
+                              control={form.control}
+                              name="activityLevel"
+                              render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>활동레벨</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger className="bg-background">
+                                          <SelectValue placeholder="활동레벨을 선택하세요" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent className="bg-background border-border z-50">
+                                        {Object.entries(activityLevelMap).map(([key, value]) => (
+                                            <SelectItem key={key} value={key}>
+                                              {value}
+                                            </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                              )}
+                          />
+
+                          <div className="flex gap-2 pt-4">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                  setIsEditMode(false);
+                                  setIsNicknameChecked(false);
+                                  setSelectedFile(null); // Clear selected file when cancelling
+                                }}
+                                className="flex-1"
+                            >
+                              취소
+                            </Button>
+                            <Button
+                                type="submit"
+                                className="flex-1"
+                                disabled={isSubmitting || (currentNickname !== memberData?.nickname && !isNicknameChecked)}
+                            >
+                              {isSubmitting ? '수정 중...' : '수정 완료'}
+                            </Button>
+                          </div>
+                        </form>
+                      </Form>
+                  ) : (
+                      /* 조회 모드 */
+                      <div className="space-y-4">
+                        <div className="space-y-4">
+
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">이메일</Label>
+                            <div className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
+                              {form.getValues('email')}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between mb-2">
-                                <h3 className="font-medium line-clamp-1 text-foreground">{post.title}</h3>
-                                <Badge variant="secondary" className="text-xs ml-2 flex-shrink-0">{post.category}</Badge>
-                              </div>
-                              <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{post.content}</p>
-                              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                <div className="flex items-center gap-4">
+                          </div>
+
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">성별</Label>
+                            <div className="mt-2">
+                              <RadioGroup
+                                  value={form.getValues('gender')}
+                                  disabled
+                                  className="flex gap-6"
+                              >
+                                <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="male" id="male-read" disabled />
+                                  <Label htmlFor="male-read" className="text-muted-foreground">남성</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="female" id="female-read" disabled />
+                                  <Label htmlFor="female-read" className="text-muted-foreground">여성</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <RadioGroupItem value="none" id="none-read" disabled />
+                                  <Label htmlFor="none-read" className="text-muted-foreground">없음</Label>
+                                </div>
+                              </RadioGroup>
+                            </div>
+                          </div>
+
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">나이</Label>
+                            <div className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
+                              {form.getValues('age')}세
+                            </div>
+                          </div>
+
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">활동레벨</Label>
+                            <div className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
+                              {activityLevelMap[form.getValues('activityLevel') as keyof typeof activityLevelMap]}
+                            </div>
+                          </div>
+
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">키</Label>
+                            <div className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
+                              {form.getValues('height')}cm
+                            </div>
+                          </div>
+
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">현재 몸무게</Label>
+                            <div className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
+                              {form.getValues('weight')}kg
+                            </div>
+                          </div>
+
+                          <div>
+                            <Label className="text-sm font-medium text-muted-foreground">목표 몸무게</Label>
+                            <div className="mt-1 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground cursor-not-allowed">
+                              {form.getValues('targetWeight')}kg
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3 mt-6">
+                          <Button
+                              onClick={() => {
+                                setIsEditMode(true);
+                                setSelectedFile(null); // Clear selected file when entering edit mode
+                              }}
+                              className="w-full"
+                          >
+                            정보수정하기
+                          </Button>
+
+                          {/* 로그아웃 및 회원 탈퇴 버튼 */}
+                          <div className="flex gap-3">
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="outline" className="flex-1 flex items-center gap-2">
+                                  <LogOut size={16} />
+                                  로그아웃
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>로그아웃 확인</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    정말로 로그아웃하시겠습니까?
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>취소</AlertDialogCancel>
+                                  <AlertDialogAction onClick={handleLogout}>확인</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="secondary" className="flex-1 flex items-center gap-2">
+                                  <UserX size={16} />
+                                  회원 탈퇴
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>회원 탈퇴 확인</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    정말로 회원 탈퇴를 진행하시겠습니까?<br />
+                                    탈퇴 후에는 모든 데이터가 삭제되며 복구할 수 없습니다.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>취소</AlertDialogCancel>
+                                  <AlertDialogAction
+                                      onClick={handleDeleteAccount}
+                                      className="bg-destructive hover:bg-destructive/90"
+                                  >
+                                    탈퇴하기
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
+                        </div>
+                      </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* 뱃지 탭 */}
+            <TabsContent value="badges">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Award size={20} />
+                    나의 뱃지 컬렉션
+                  </CardTitle>
+                  <p className="text-muted-foreground">
+                    {badgesData ? (
+                        `획득한 뱃지: ${badgesData.content.filter(badge => badge.isOwned).length}/${badgesData.totalElements}`
+                    ) : (
+                        '뱃지 정보를 불러오는 중...'
+                    )}
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {badgesLoading ? (
+                      <div className="flex justify-center items-center py-8">
+                        <div className="text-muted-foreground">뱃지 정보를 불러오는 중...</div>
+                      </div>
+                  ) : badgesData && badgesData.content.length > 0 ? (
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {badgesData.content.map((badge) => {
+                            const IconComponent = getBadgeIcon(badge.name);
+                            const acquiredDate = badge.acquiredAt ? new Date(badge.acquiredAt).toLocaleDateString('ko-KR') : null;
+
+                            return (
+                                <Card
+                                    key={badge.id}
+                                    className={`relative transition-all hover:scale-105 hover:shadow-lg ${
+                                        badge.isOwned
+                                            ? 'bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20'
+                                            : 'bg-muted/30 opacity-60'
+                                    }`}
+                                >
+                                  <CardContent className="p-4 text-center">
+                                    <div className={`w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center transition-all ${
+                                        badge.isOwned
+                                            ? 'bg-primary text-primary-foreground shadow-lg'
+                                            : 'bg-muted text-muted-foreground'
+                                    }`}>
+                                      {badge.badgeImage ? (
+                                          <img
+                                              src={badge.badgeImage}
+                                              alt={badge.name}
+                                              className="w-8 h-8 object-contain"
+                                          />
+                                      ) : (
+                                          <IconComponent size={24} />
+                                      )}
+                                    </div>
+                                    <h3 className="font-semibold mb-1">{badge.name}</h3>
+                                    <p className="text-sm text-muted-foreground mb-2">{badge.description}</p>
+                                    {badge.isOwned ? (
+                                        <Badge variant="default" className="text-xs">
+                                          {acquiredDate} 획득
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="outline" className="text-xs">
+                                          미획득
+                                        </Badge>
+                                    )}
+                                  </CardContent>
+                                </Card>
+                            );
+                          })}
+                        </div>
+
+                        {/* 뱃지 페이징 */}
+                        {badgesData.totalPages > 0 && (
+                            <Pagination>
+                              <PaginationContent>
+                                <PaginationItem>
+                                  <PaginationPrevious
+                                      onClick={() => setCurrentBadgePage(Math.max(1, currentBadgePage - 1))}
+                                      className={currentBadgePage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                                  />
+                                </PaginationItem>
+                                {Array.from({ length: badgesData.totalPages }, (_, i) => i + 1).map((page) => (
+                                    <PaginationItem key={page}>
+                                      <PaginationLink
+                                          onClick={() => setCurrentBadgePage(page)}
+                                          isActive={page === currentBadgePage}
+                                          className="cursor-pointer"
+                                      >
+                                        {page}
+                                      </PaginationLink>
+                                    </PaginationItem>
+                                ))}
+                                <PaginationItem>
+                                  <PaginationNext
+                                      onClick={() => setCurrentBadgePage(Math.min(badgesData.totalPages, currentBadgePage + 1))}
+                                      className={currentBadgePage === badgesData.totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                                  />
+                                </PaginationItem>
+                              </PaginationContent>
+                            </Pagination>
+                        )}
+                      </>
+                  ) : (
+                      <div className="flex justify-center items-center py-8">
+                        <div className="text-muted-foreground">뱃지가 없습니다.</div>
+                      </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* 북마크 탭 */}
+            <TabsContent value="bookmarks">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bookmark size={20} />
+                    북마크한 게시글
+                  </CardTitle>
+                  <p className="text-muted-foreground">
+                    총 {bookmarksData?.totalElements || 0}개의 게시글을 북마크했어요
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {bookmarksLoading ? (
+                      <div className="flex justify-center items-center py-8">
+                        <div className="text-muted-foreground">북마크를 불러오는 중...</div>
+                      </div>
+                  ) : currentBookmarks.length > 0 ? (
+                      <>
+                        <div className="space-y-4">
+                          {currentBookmarks.map((post) => (
+                              <Card key={post.bookmarkId} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/community')}>
+                                <CardContent className="p-4">
+                                  <div className="flex gap-4">
+                                    <div className="w-16 h-16 bg-muted rounded-lg flex-shrink-0">
+                                      <img
+                                          src="/public/placeholder.svg"
+                                          alt={post.boardTitle}
+                                          className="w-full h-full object-cover rounded-lg"
+                                      />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-start justify-between mb-2">
+                                        <h3 className="font-medium line-clamp-1">{post.boardTitle}</h3>
+                                        <Badge variant="secondary" className="text-xs">{post.boardType}</Badge>
+                                      </div>
+                                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                                        <span>{post.boardAuthorNickname}</span>
+                                      </div>
+                                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                        <div className="flex items-center gap-4">
+                                    <span className="flex items-center gap-1">
+                                      <Heart size={12} className="text-red-500" />
+                                      {post.likeCount.toLocaleString()}
+                                    </span>
+                                          <span className="flex items-center gap-1">
+                                      <Eye size={12} className="text-blue-500" />
+                                            {post.viewCount.toLocaleString()}
+                                    </span>
+                                          <span className="flex items-center gap-1">
+                                      <MessageCircle size={12} className="text-green-500" />
+                                            {post.commentCount}
+                                    </span>
+                                        </div>
+                                        <span>{new Date(post.bookmarkedAt).toLocaleDateString()} 저장</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                          ))}
+                        </div>
+
+                        {/* 북마크 페이징 */}
+                        {totalBookmarkPages > 0 && (
+                            <Pagination>
+                              <PaginationContent>
+                                <PaginationItem>
+                                  <PaginationPrevious
+                                      onClick={() => setCurrentBookmarkPage(Math.max(1, currentBookmarkPage - 1))}
+                                      className={currentBookmarkPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                                  />
+                                </PaginationItem>
+                                {Array.from({ length: totalBookmarkPages }, (_, i) => i + 1).map((page) => (
+                                    <PaginationItem key={page}>
+                                      <PaginationLink
+                                          onClick={() => setCurrentBookmarkPage(page)}
+                                          isActive={page === currentBookmarkPage}
+                                          className="cursor-pointer"
+                                      >
+                                        {page}
+                                      </PaginationLink>
+                                    </PaginationItem>
+                                ))}
+                                <PaginationItem>
+                                  <PaginationNext
+                                      onClick={() => setCurrentBookmarkPage(Math.min(totalBookmarkPages, currentBookmarkPage + 1))}
+                                      className={currentBookmarkPage === totalBookmarkPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                                  />
+                                </PaginationItem>
+                              </PaginationContent>
+                            </Pagination>
+                        )}
+                      </>
+                  ) : (
+                      <div className="flex justify-center items-center py-8">
+                        <div className="text-muted-foreground">북마크한 게시글이 없습니다.</div>
+                      </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* 내가 작성한 게시글 탭 */}
+            <TabsContent value="posts">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText size={20} />
+                    내가 작성한 게시글
+                  </CardTitle>
+                  <p className="text-muted-foreground">
+                    총 {postsData?.totalElements || 0}개의 게시글을 작성했어요
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {postsLoading ? (
+                      <div className="flex justify-center items-center py-8">
+                        <div className="text-muted-foreground">게시글을 불러오는 중...</div>
+                      </div>
+                  ) : currentPosts.length > 0 ? (
+                      <div className="space-y-4">
+                        {currentPosts.map((post) => (
+                            <Card key={post.boardId} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/community')}>
+                              <CardContent className="p-4">
+                                <div className="flex gap-4">
+                                  <div className="w-16 h-16 bg-muted rounded-lg flex-shrink-0 overflow-hidden">
+                                    <div className="w-full h-full bg-gradient-to-br from-muted to-muted-foreground/20 flex items-center justify-center">
+                                      <FileText size={20} className="text-muted-foreground" />
+                                    </div>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-start justify-between mb-2">
+                                      <h3 className="font-medium line-clamp-1 text-foreground">{post.boardTitle}</h3>
+                                      <Badge variant="secondary" className="text-xs ml-2 flex-shrink-0">{post.boardType}</Badge>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground line-clamp-2 mb-3">{post.boardContent}</p>
+                                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                      <div className="flex items-center gap-4">
                                   <span className="flex items-center gap-1">
                                     <Heart size={12} className="text-red-500" />
-                                    {post.likes.toLocaleString()}
+                                    {post.likeCount.toLocaleString()}
                                   </span>
-                                  <span className="flex items-center gap-1">
+                                        <span className="flex items-center gap-1">
                                     <Eye size={12} className="text-blue-500" />
-                                    {post.views.toLocaleString()}
+                                          {post.viewCount.toLocaleString()}
                                   </span>
-                                  <span className="flex items-center gap-1">
+                                        <span className="flex items-center gap-1">
                                     <MessageCircle size={12} className="text-green-500" />
-                                    {post.comments}
+                                          {post.commentCount}
                                   </span>
+                                      </div>
+                                      <span>{new Date(post.createdDate).toLocaleDateString()}</span>
+                                    </div>
+                                  </div>
                                 </div>
-                                <span>{post.createdDate}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <FileText size={48} className="mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-lg font-medium text-foreground mb-2">작성한 게시글이 없습니다</h3>
-                    <p className="text-muted-foreground">커뮤니티에서 첫 게시글을 작성해보세요!</p>
-                  </div>
-                )}
+                              </CardContent>
+                            </Card>
+                        ))}
+                      </div>
+                  ) : (
+                      <div className="text-center py-12">
+                        <FileText size={48} className="mx-auto mb-4 text-muted-foreground" />
+                        <h3 className="text-lg font-medium text-foreground mb-2">작성한 게시글이 없습니다</h3>
+                        <p className="text-muted-foreground">커뮤니티에서 첫 게시글을 작성해보세요!</p>
+                      </div>
+                  )}
 
-                {/* 게시글 페이징 */}
-                {totalPostPages > 1 && (
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious 
-                          onClick={() => setCurrentPostPage(Math.max(1, currentPostPage - 1))}
-                          className={currentPostPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                        />
-                      </PaginationItem>
-                      {Array.from({ length: totalPostPages }, (_, i) => i + 1).map((page) => (
-                        <PaginationItem key={page}>
-                          <PaginationLink
-                            onClick={() => setCurrentPostPage(page)}
-                            isActive={page === currentPostPage}
-                            className="cursor-pointer"
-                          >
-                            {page}
-                          </PaginationLink>
-                        </PaginationItem>
-                      ))}
-                      <PaginationItem>
-                        <PaginationNext 
-                          onClick={() => setCurrentPostPage(Math.min(totalPostPages, currentPostPage + 1))}
-                          className={currentPostPage === totalPostPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                  {/* 게시글 페이징 */}
+                  {totalPostPages > 0 && (
+                      <Pagination>
+                        <PaginationContent>
+                          <PaginationItem>
+                            <PaginationPrevious
+                                onClick={() => setCurrentPostPage(Math.max(1, currentPostPage - 1))}
+                                className={currentPostPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                            />
+                          </PaginationItem>
+                          {Array.from({ length: totalPostPages }, (_, i) => i + 1).map((page) => (
+                              <PaginationItem key={page}>
+                                <PaginationLink
+                                    onClick={() => setCurrentPostPage(page)}
+                                    isActive={page === currentPostPage}
+                                    className="cursor-pointer"
+                                >
+                                  {page}
+                                </PaginationLink>
+                              </PaginationItem>
+                          ))}
+                          <PaginationItem>
+                            <PaginationNext
+                                onClick={() => setCurrentPostPage(Math.min(totalPostPages, currentPostPage + 1))}
+                                className={currentPostPage === totalPostPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                            />
+                          </PaginationItem>
+                        </PaginationContent>
+                      </Pagination>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          {/* 내가 작성한 댓글 탭 */}
-          <TabsContent value="comments">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MessageSquare size={20} />
-                  내가 작성한 댓글
-                </CardTitle>
-                <p className="text-muted-foreground">
-                  총 {userComments.length}개의 댓글을 작성했어요
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {currentComments.length > 0 ? (
-                  <div className="space-y-4">
-                    {currentComments.map((comment) => (
-                      <Card key={comment.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                        <CardContent className="p-4">
-                          <div className="space-y-3">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h4 className="font-medium text-sm text-foreground line-clamp-1">{comment.postTitle}</h4>
-                                  <Badge variant="secondary" className="text-xs flex-shrink-0">{comment.postCategory}</Badge>
-                                </div>
-                                <p className="text-xs text-muted-foreground">by {comment.postAuthor}</p>
-                              </div>
-                            </div>
-                            
-                            <div className="bg-muted/30 rounded-lg p-3">
-                              <p className="text-sm text-foreground leading-relaxed">{comment.comment}</p>
-                            </div>
-                            
-                            <div className="flex items-center justify-end text-xs text-muted-foreground">
-                              <span>{comment.createdDate}</span>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <MessageSquare size={48} className="mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-lg font-medium text-foreground mb-2">작성한 댓글이 없습니다</h3>
-                    <p className="text-muted-foreground">커뮤니티에서 다른 사람들과 소통해보세요!</p>
-                  </div>
-                )}
-
-                {/* 댓글 페이징 */}
-                {totalCommentPages > 1 && (
-                  <Pagination>
-                    <PaginationContent>
-                      <PaginationItem>
-                        <PaginationPrevious 
-                          onClick={() => setCurrentCommentPage(Math.max(1, currentCommentPage - 1))}
-                          className={currentCommentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                        />
-                      </PaginationItem>
-                      {Array.from({ length: totalCommentPages }, (_, i) => i + 1).map((page) => (
-                        <PaginationItem key={page}>
-                          <PaginationLink
-                            onClick={() => setCurrentCommentPage(page)}
-                            isActive={page === currentCommentPage}
-                            className="cursor-pointer"
-                          >
-                            {page}
-                          </PaginationLink>
-                        </PaginationItem>
-                      ))}
-                      <PaginationItem>
-                        <PaginationNext 
-                          onClick={() => setCurrentCommentPage(Math.min(totalCommentPages, currentCommentPage + 1))}
-                          className={currentCommentPage === totalCommentPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                        />
-                      </PaginationItem>
-                    </PaginationContent>
-                  </Pagination>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+          </Tabs>
+        </div>
       </div>
-    </div>
   );
 };
 

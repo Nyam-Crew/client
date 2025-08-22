@@ -1,17 +1,51 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useState } from "react";
 
 const Login = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const handleGoogleLogin = () => {
-    console.log("Google login clicked");
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Spring Security OAuth2 표준 엔드포인트로 리다이렉트
+      const baseURL = "http://" + import.meta.env.VITE_BACKEND_ADDRESS;
+      window.location.href = `${baseURL}/oauth2/authorization/google`;
+    } catch (err) {
+      setError("Google 로그인 중 오류가 발생했습니다.");
+      setIsLoading(false);
+    }
   };
 
   const handleKakaoLogin = () => {
-    console.log("Kakao login clicked");
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Spring Security OAuth2 표준 엔드포인트로 리다이렉트
+      const baseURL = "http://" + import.meta.env.VITE_BACKEND_ADDRESS;
+      window.location.href = `${baseURL}/oauth2/authorization/kakao`;
+    } catch (err) {
+      setError("카카오 로그인 중 오류가 발생했습니다.");
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-white">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-background relative">
+      {/* Page-level Loading Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-8 flex flex-col items-center space-y-4 shadow-2xl">
+            <div className="w-8 h-8 border-4 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+            <p className="text-lg font-medium text-gray-700">로그인 중...</p>
+          </div>
+        </div>
+      )}
+
       <Card className="w-full max-w-lg shadow-xl border-0 bg-secondary min-h-[600px] flex items-center">
         <CardContent className="p-12 space-y-10 w-full">
 
@@ -21,13 +55,21 @@ const Login = () => {
             <p className="text-lg text-muted-foreground">건강한 식습관을 함께 만들어가요</p>
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm text-center">
+              {error}
+            </div>
+          )}
+
           {/* Social Login Buttons */}
           <div className="space-y-5">
             {/* Google Login Button */}
             <Button
               onClick={handleGoogleLogin}
+              disabled={isLoading}
               variant="outline"
-              className="w-full h-12 bg-white border-border hover:bg-muted text-foreground font-medium transition-all duration-200 hover:shadow-md rounded-xl"
+              className="w-full h-12 bg-white border-border hover:bg-muted text-foreground font-medium transition-all duration-200 hover:shadow-md rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <div className="flex items-center justify-center space-x-3">
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -55,7 +97,8 @@ const Login = () => {
             {/* Kakao Login Button */}
             <Button
               onClick={handleKakaoLogin}
-              className="w-full h-12 bg-[#FEE500] hover:bg-[#FDD800] text-black font-medium transition-all duration-200 hover:shadow-md border-0 rounded-xl"
+              disabled={isLoading}
+              className="w-full h-12 bg-[#FEE500] hover:bg-[#FDD800] text-black font-medium transition-all duration-200 hover:shadow-md border-0 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <div className="flex items-center justify-center space-x-3">
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">

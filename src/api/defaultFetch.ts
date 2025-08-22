@@ -25,10 +25,13 @@ export const defaultFetch = async (url: string, options: RequestInit = {}) => {
   } = options as RequestInit & Record<string, any>;
 
   // Content-Type 기본값 + 사용자 지정 헤더 병합
-  const headers = {
-    "Content-Type": "application/json",
-    ...reqHeaders as Record<string, string>
-  };
+  // FormData인 경우 Content-Type을 자동으로 설정하도록 함
+  const headers = body instanceof FormData 
+    ? { ...reqHeaders as Record<string, string> }
+    : {
+        "Content-Type": "application/json",
+        ...reqHeaders as Record<string, string>
+      };
 
   console.log("[defaultFetch] : 헤더 설정 완료 (axios)");
 
@@ -37,8 +40,15 @@ export const defaultFetch = async (url: string, options: RequestInit = {}) => {
     url,
     method: method as AxiosRequestConfig['method'],
     headers,
-    // fetch의 body를 axios의 data로 전달 (이미 JSON.stringify 되어 있으면 그대로 사용)
-    data: typeof body === 'string' ? body : body ? JSON.stringify(body) : undefined,
+    // fetch의 body를 axios의 data로 전달
+    // FormData인 경우 그대로 전달, 그 외에는 JSON.stringify
+    data: body instanceof FormData 
+      ? body 
+      : typeof body === 'string' 
+        ? body 
+        : body 
+          ? JSON.stringify(body) 
+          : undefined,
     withCredentials: true, // 쿠키 포함
     // 이전 구현과 동일하게 200/204만 성공으로 간주
     validateStatus: (status) => status === 200 || status === 204,
@@ -62,6 +72,14 @@ export const defaultFetch = async (url: string, options: RequestInit = {}) => {
     const status = err?.response?.status;
     const statusText = err?.response?.statusText;
     console.error(`[Default Fetch] : 에러 발생 ${status ?? 'unknown'}: ${statusText ?? err?.message}`);
+    
+    // Handle 401 Unauthorized errors by redirecting to login page
+    if (status === 401) {
+      console.log('[Default Fetch] : 401 Unauthorized - redirecting to login');
+      window.location.href = '/login';
+      return; // Don't throw error after redirect
+    }
+    
     throw new Error("요청 실패");
   }
 };
