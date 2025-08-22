@@ -1,140 +1,115 @@
-import { useState, useEffect, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Send } from 'lucide-react';
+import {useEffect, useRef, useState} from 'react';
+import {Button} from '@/components/ui/button';
+import {Textarea} from '@/components/ui/textarea';
+import {Send} from 'lucide-react';
+import {subscribeToChatRoom} from "@/lib/webscoekt.ts";
+import {defaultFetch} from "@/lib/DefaultFetch.ts";
+import {StompSubscription} from "@stomp/stompjs";
 
-interface Message {
+interface ChatMessage {
   messageId: string;
   senderId: string;
-  senderName: string;
+  sender: string;
   content: string;
-  createdAt: string;
+  timestamp?: string;
 }
 
 interface ChatContainerProps {
-  roomId: string;
+  teamId: string;
   currentUserId: string;
 }
 
-// 더미 데이터 생성 (50개 메시지)
-const generateDummyMessages = (): Message[] => {
-  const users = [
-    { id: 'user1', name: '김운동' },
-    { id: 'user2', name: '박헬스' },
-    { id: 'user3', name: '이요가' },
-    { id: 'current', name: '나' }
-  ];
+interface sendMessage {
+  content: string;
+}
 
-  const messages: Message[] = [];
-  const now = new Date();
-
-  for (let i = 0; i < 50; i++) {
-    const user = users[Math.floor(Math.random() * users.length)];
-    const messageTime = new Date(now.getTime() - (50 - i) * 5 * 60 * 1000); // 5분 간격
-    
-    const contents = [
-      '오늘 운동 완료했습니다!',
-      '내일 아침 조깅 같이 하실 분?',
-      '벌써 일주일째 꾸준히 하고 있어요 💪',
-      '힘들지만 재미있네요',
-      '운동 후 기분이 정말 좋아요',
-      '오늘은 30분 걸었습니다',
-      '헬스장에서 만나요',
-      '스트레칭도 중요해요',
-      '물 많이 드세요!',
-      '오늘도 화이팅!'
-    ];
-
-    messages.push({
-      messageId: `msg${i + 1}`,
-      senderId: user.id,
-      senderName: user.name,
-      content: contents[Math.floor(Math.random() * contents.length)],
-      createdAt: messageTime.toISOString()
-    });
-  }
-
-  return messages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-};
-
-const ChatContainer = ({ roomId, currentUserId }: ChatContainerProps) => {
-  const [allMessages] = useState<Message[]>(generateDummyMessages());
-  const [displayedMessages, setDisplayedMessages] = useState<Message[]>([]);
+const ChatContainer = ({ teamId, currentUserId }: ChatContainerProps) => {
+  const [displayedMessages, setDisplayedMessages] = useState<ChatMessage[]>([]);
   const [showAllButton, setShowAllButton] = useState(false);
   const [inputText, setInputText] = useState('');
   const [isComposing, setIsComposing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // 구독 처리를 위한 Ref
+  const subscriptionRef = useRef<StompSubscription | null>(null);
 
-  // 더미 API 함수들
-  const fetchRecent20 = async (roomId: string): Promise<Message[]> => {
-    return new Promise(resolve => {
-      setTimeout(() => {
-        const recent = allMessages.slice(-20);
-        resolve(recent);
-      }, 300);
-    });
+  // 최근 20개 불러오기,
+  const fetchRecent20 = async (teamId: string) => {
+    const history : ChatMessage[] = await defaultFetch(`/api/chat/history/${teamId}`)
+
+    return history;
   };
 
-  const fetchAll = async (roomId: string): Promise<Message[]> => {
-    return new Promise(resolve => {
-      setTimeout(() => {
-        resolve(allMessages);
-      }, 500);
-    });
-  };
+  const fetchAll = async (teamId: string) => {
+    const allMessages : ChatMessage[] = await defaultFetch(`/api/chat/history/${teamId}/all`)
 
-  const sendMessage = async (roomId: string, text: string): Promise<Message> => {
-    return new Promise(resolve => {
-      setTimeout(() => {
-        const newMessage: Message = {
-          messageId: `msg${Date.now()}`,
-          senderId: currentUserId,
-          senderName: '나',
-          content: text,
-          createdAt: new Date().toISOString()
-        };
-        resolve(newMessage);
-      }, 200);
-    });
+    return allMessages;
   };
 
   // 초기 로딩
   useEffect(() => {
-    const loadInitialMessages = async () => {
-      const recent = await fetchRecent20(roomId);
-      setDisplayedMessages(recent);
-      setShowAllButton(allMessages.length > 20);
-    };
-    
-    loadInitialMessages();
-  }, [roomId, allMessages.length]);
+    const init = async () => {
+      // 과거 메세지 가져오기
+      const history = await fetchRecent20(teamId);
+      setDisplayedMessages(history);
+
+      // 과거 메세지가 20개라면, 전체 보기 버튼 표시
+      if (Array.isArray(history) && history.length === 20) {
+        setShowAllButton(true);
+      }
+
+      // 구독과 동시에 구독 정보 Ref에 저장
+      subscriptionRef.current = subscribeToChatRoom(teamId, (msg) => {
+        setDisplayedMessages((prev) => [...prev, msg]);
+        console.log("새로운 메세지 수신");
+      });
+    }
+
+    init()
+
+    // 채팅 컨테이너 사라질 때는 Ref기반으로 구독 해제 처리하기
+    return () => {
+      if (subscriptionRef.current) {
+        subscriptionRef.current.unsubscribe();
+        subscriptionRef.current = null;
+      }
+    }
+  }, []);
 
   // 스크롤을 하단으로
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
-
   useEffect(() => {
     scrollToBottom();
   }, [displayedMessages]);
 
   // 전체 메시지 로딩
   const handleShowAll = async () => {
-    const all = await fetchAll(roomId);
+    const all = await fetchAll(teamId);
     setDisplayedMessages(all);
     setShowAllButton(false);
   };
 
   // 메시지 전송
   const handleSendMessage = async () => {
-    if (!inputText.trim()) return;
+    if (!inputText.trim() || !teamId) return;
 
     const text = inputText.trim();
-    setInputText('');
 
-    const newMessage = await sendMessage(roomId, text);
-    setDisplayedMessages(prev => [...prev, newMessage]);
+    const message : sendMessage = {
+      content: text,
+    }
+
+    await defaultFetch(`/api/chat/${teamId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
+
+    setInputText('');
   };
 
   // 키보드 이벤트 처리
@@ -146,13 +121,13 @@ const ChatContainer = ({ roomId, currentUserId }: ChatContainerProps) => {
   };
 
   // 메시지 그룹핑 로직 (2분 이내 동일 사용자)
-  const shouldShowSender = (message: Message, index: number): boolean => {
+  const shouldShowSender = (message: ChatMessage, index: number): boolean => {
     if (index === 0) return true;
     
     const prevMessage = displayedMessages[index - 1];
     if (prevMessage.senderId !== message.senderId) return true;
     
-    const timeDiff = new Date(message.createdAt).getTime() - new Date(prevMessage.createdAt).getTime();
+    const timeDiff = new Date(message.timestamp).getTime() - new Date(prevMessage.timestamp).getTime();
     return timeDiff > 2 * 60 * 1000; // 2분
   };
 
@@ -197,7 +172,7 @@ const ChatContainer = ({ roomId, currentUserId }: ChatContainerProps) => {
                 {/* 발신자 이름 (그룹 첫 메시지에만) */}
                 {!isMine && showSender && (
                   <div className="text-xs text-muted-foreground mb-1 px-1">
-                    {message.senderName}
+                    {message.sender}
                   </div>
                 )}
                 
@@ -218,7 +193,7 @@ const ChatContainer = ({ roomId, currentUserId }: ChatContainerProps) => {
                   
                   {/* 시간 */}
                   <div className="text-xs text-muted-foreground whitespace-nowrap">
-                    {formatTime(message.createdAt)}
+                    {formatTime(message.timestamp)}
                   </div>
                 </div>
               </div>
