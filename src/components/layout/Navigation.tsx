@@ -2,7 +2,7 @@ import {useEffect, useState} from 'react';
 import {Link, useLocation} from 'react-router-dom';
 import {Bell, BookOpen, Home, User, UserPlus, Users} from 'lucide-react';
 import {Button} from '@/components/ui/button';
-import {activateStompClient, subscribeNotification} from "@/lib/webscoekt.ts";
+import {activateStompClient, subscribeNotification} from "@/lib/websocket.ts";
 
 const Navigation = () => {
   const location = useLocation();
