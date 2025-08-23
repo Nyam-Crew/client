@@ -413,8 +413,8 @@ const MealDetail = () => {
           </div>
         </div>
 
-        {/* Fixed bottom */}
-        <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 space-y-4" style={{ height: '30vh' }}>
+        {/* bottom */}
+        <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 space-y-4" style={{ height: '25vh' }}>
           {mealData && mealData.foods.length > 0 && (
               <div className="bg-muted p-4 rounded-lg">
                 <div className="text-center mb-4">
