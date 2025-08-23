@@ -78,9 +78,10 @@ const MealRecord = () => {
   const [weekAnchor, setWeekAnchor] = useState(new Date()); // 주(7일) 뷰의 기준일
   const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth() + 1));
   const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // 기타 상태
-  const [selectedMeal, setSelectedMeal] = useState<string | null>(null);
+  const [selectedMeal] = useState<string | null>(null);
   const [mealDialogOpen, setMealDialogOpen] = useState(false);
   const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
   const [waterDialogOpen, setWaterDialogOpen] = useState(false);
@@ -115,6 +116,30 @@ const MealRecord = () => {
     setSelectedYear(String(selectedDate.getFullYear()));
     setSelectedMonth(String(selectedDate.getMonth() + 1));
   }, [selectedDate]);
+
+  // searchParams → state 1회 반영
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    const d = searchParams.get('d');
+
+    if (tab && ['myDay', 'whatIAte', 'dailyMissions'].includes(tab) && tab !== activeTab) {
+      setActiveTab(tab);
+    }
+    if (d) {
+      const parsed = new Date(d);
+      if (!isNaN(parsed.getTime())) setSelectedDate(parsed);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+// state → URL (탭/날짜 바뀔 때마다)
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    params.set('tab', activeTab);
+    params.set('d', selectedDateStr);
+    setSearchParams(params, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, selectedDateStr]);
 
   // 연/월 셀렉트 변경 시 selectedDate 이동 (일자는 가능한 유지, 말일 보정)
   useEffect(() => {
@@ -182,7 +207,6 @@ const MealRecord = () => {
       navigate(`/food-search?mealType=${mealType}&d=${selectedDateStr}`);
 
   // 물/체중 처리
-  const handleWaterClick = () => setWaterDialogOpen(true);
   const handleWaterSave = async (amount: number) => {
     setWaterAmount(amount);
     toast({ title: "저장 완료", description: "물 섭취량이 저장되었습니다." });
@@ -236,6 +260,7 @@ const MealRecord = () => {
     toast({ title: "등록 완료", description: "'안먹었어요'가 등록되었습니다." });
     await fetchDayData();
   };
+
   const handleMealCardClick = (mealId: string, status: string) => {
     if (status !== 'empty') handleMealClick(mealId);
   };
@@ -293,7 +318,7 @@ const MealRecord = () => {
   return (
       <div className="min-h-screen bg-gray-50" style={{ backgroundColor: '#fffff5' }}>
         {/* 상단 바 */}
-        <div className="bg-white px-4 py-3 border-b">
+        <div className="px-4 py-3 border-b" style={{ backgroundColor: '#fffff5' }}>
           {/* 연/월 셀렉트 + 캘린더 버튼 */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
