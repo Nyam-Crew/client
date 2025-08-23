@@ -15,6 +15,7 @@ import MyPage from "./pages/MyPage";
 import GroupPage from "./pages/GroupPage";
 import Navigation from "./components/layout/Navigation";
 import NotFound from "./pages/NotFound";
+import TeamDetailPage from "@/components/group/TeamDetailPage.tsx";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/food-search" element={<FoodSearch />} />
           <Route path="/challenge" element={<Challenge />} />
           <Route path="/community" element={<Community />} />
+          <Route path="/teams/:teamId" element={<TeamDetailPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/member-info" element={<MemberInfo />} />
           <Route path="/teams" element={<GroupPage />} />
