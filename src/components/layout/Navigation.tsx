@@ -3,13 +3,35 @@ import {Link, useLocation} from 'react-router-dom';
 import {Bell, BookOpen, Home, User, UserPlus, Users} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {activateStompClient, subscribeNotification} from "@/lib/websocket.ts";
-import {defaultFetch} from '@/api/defaultFetch';
+import {useQuery, useQueryClient} from "@tanstack/react-query";
+import {defaultFetch} from "@/api/defaultFetch.ts";
+import {Popover, PopoverContent, PopoverTrigger} from "@radix-ui/react-popover";
+import {AlertContainer} from "@/components/layout/AlertContainer.tsx";
+
+const useHasNotification = (isLoggedIn : boolean, isAuthChecking : boolean) => {
+  return useQuery({
+    queryKey: ["hasNotification"],
+    queryFn: async () => {
+      const res = await defaultFetch("/api/notify/status");
+      return res.hasNew;
+    },
+    enabled : isLoggedIn && !isAuthChecking,   // 로그인 한 상태이면서, 권한 체크 끝나야 실행
+    refetchInterval: 30_000,         // 30초마다 갱신
+    refetchOnWindowFocus: true,      // 탭 복귀 시 갱신
+    refetchOnReconnect: true,        // 네트워크 복구 시 갱신
+    staleTime: 10_000,
+  });
+}
 
 const Navigation = () => {
   const location = useLocation();
-  const [hasNotification, setHasNotification] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const qc = useQueryClient();
+  const { data: hasNotification = false } = useHasNotification(isLoggedIn, isCheckingAuth);
+  const [open, setOpen] = useState(false);
+
+  const onBellClick = () => setOpen((v) => !v);
 
   const navItems = [
     {icon: Home, label: '홈', path: '/'},
@@ -33,6 +55,7 @@ const Navigation = () => {
   };
 
   // Check authentication status on component mount
+
   useEffect(() => {
     // Skip auth check if we're on the login page to avoid infinite redirect loop
     if (location.pathname === '/login') {
@@ -40,7 +63,7 @@ const Navigation = () => {
       setIsCheckingAuth(false);
       return;
     }
-    
+
     checkAuthStatus();
   }, [location.pathname]);
 
@@ -92,15 +115,29 @@ const Navigation = () => {
               </div>
             )}
 
-            {/* 알림 버튼 - 로그인된 사용자만 표시 */}
-            {isLoggedIn && (
-              <Button variant="ghost" size="sm" className="relative">
-                <Bell size={20}/>
-                {hasNotification && (
-                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full"/>
-                )}
-              </Button>
-            )}
+            {/* 알림 버튼 */}
+            <Popover
+                open={open}
+                onOpenChange={(v) => {
+                  setOpen(v);
+                  if (!v) {
+                    // 팝오버 닫힐 때 새 알림 여부 재검사
+                    qc.invalidateQueries({ queryKey: ["hasNotification"] });
+                  }
+                }}
+            >
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="relative" onClick={onBellClick} aria-label="알림">
+                  <Bell size={20}/>
+                  {hasNotification && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full" />
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent side="bottom" align="end" className="p-0">
+                <AlertContainer />
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* 모바일 네비게이션 - 로그인된 사용자만 표시 */}

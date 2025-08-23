@@ -224,7 +224,7 @@ const GroupFindTab = () => {
         </div>
 
         <Button 
-          onClick={() => navigate('/api/teams/create')}
+          onClick={() => navigate('/teams/create')}
           className="bg-[#c2d595] hover:bg-[#a8c373] text-[#2d3d0f] border-0"
         >
           <Plus className="mr-2 h-4 w-4" />
