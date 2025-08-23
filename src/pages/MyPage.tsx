@@ -103,6 +103,9 @@ interface CustomPageResponseDto<T> {
   totalElements: number;
   isLast: boolean;
 }
+interface BadgeCountResponse {
+  count: number;
+}
 
 // Bookmark API response interfaces
 interface MyBookmarkListResponseDto {
@@ -162,6 +165,7 @@ const MyPage = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isNicknameChecked, setIsNicknameChecked] = useState(false);
+  const [badgeCount, setBadgeCount] = useState(0);
   const [currentBadgePage, setCurrentBadgePage] = useState(1);
   const [badgesData, setBadgesData] = useState<CustomPageResponseDto<BadgeOwnershipDto> | null>(null);
   const [badgesLoading, setBadgesLoading] = useState(false);
@@ -300,14 +304,27 @@ const MyPage = () => {
     }
   };
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount= async () => {
     // 실제로는 API 호출하여 회원 탈퇴 처리
-    console.log('회원 탈퇴 처리');
-    toast({
-      title: "회원 탈퇴 완료",
-      description: "계정이 성공적으로 삭제되었습니다.",
-      variant: "destructive"
-    });
+    try {
+      await defaultFetch('/api/member/me', {
+        method: 'DELETE'
+      });
+      console.log('회원 탈퇴 처리');
+      window.location.href = '/login';
+      toast({
+        title: "회원 탈퇴 완료",
+        description: "계정이 성공적으로 삭제되었습니다.",
+        variant: "destructive"
+      });
+    } catch (error) {
+      console.error('Delete member failed:', error);
+      toast({
+        title: "회원탈퇴 실패",
+        description: "회원탈퇴 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
   };
 
   const currentNickname = form.watch('nickname');
@@ -316,6 +333,18 @@ const MyPage = () => {
   useEffect(() => {
     fetchMemberData();
   }, [fetchMemberData]);
+
+  useEffect(() => {
+    const fetchBadgeCount = async () => {
+      try {
+        const data: BadgeCountResponse = await defaultFetch('/api/member/me/badges/count');
+        setBadgeCount(data.count);
+      } catch (error) {
+        console.error('Failed to fetch badge count:', error);
+      }
+    };
+    fetchBadgeCount();
+  }, []);
 
   // Debounced nickname validation
   useEffect(() => {
@@ -888,11 +917,11 @@ const MyPage = () => {
                                       <Input
                                           placeholder="이메일"
                                           {...field}
-                                          disabled
-                                          className="bg-muted"
+                                          // disabled
+                                          // className="bg-muted"
                                       />
                                     </FormControl>
-                                    <p className="text-xs text-muted-foreground">이메일은 수정할 수 없습니다</p>
+                                    {/* <p className="text-xs text-muted-foreground">이메일은 수정할 수 없습니다</p> */}
                                   </FormItem>
                               )}
                           />
@@ -1166,7 +1195,7 @@ const MyPage = () => {
                                   <AlertDialogTitle>회원 탈퇴 확인</AlertDialogTitle>
                                   <AlertDialogDescription>
                                     정말로 회원 탈퇴를 진행하시겠습니까?<br />
-                                    탈퇴 후에는 모든 데이터가 삭제되며 복구할 수 없습니다.
+                                    탈퇴 후에는 계정을 복구할 수 없습니다.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
@@ -1198,7 +1227,7 @@ const MyPage = () => {
                   </CardTitle>
                   <p className="text-muted-foreground">
                     {badgesData ? (
-                        `획득한 뱃지: ${badgesData.content.filter(badge => badge.isOwned).length}/${badgesData.totalElements}`
+                        `획득한 뱃지: ${badgeCount}/${badgesData.totalElements}`
                     ) : (
                         '뱃지 정보를 불러오는 중...'
                     )}
@@ -1393,8 +1422,10 @@ const MyPage = () => {
                         )}
                       </>
                   ) : (
-                      <div className="flex justify-center items-center py-8">
-                        <div className="text-muted-foreground">북마크한 게시글이 없습니다.</div>
+                      <div className="text-center py-12">
+                        <Bookmark size={48} className="mx-auto mb-4 text-muted-foreground" />
+                        <h3 className="text-lg font-medium text-foreground mb-2">북마크한 게시글이 없습니다.</h3>
+                        <p className="text-muted-foreground">커뮤니티에서 첫 북마크를 해보세요!</p>
                       </div>
                   )}
                 </CardContent>
