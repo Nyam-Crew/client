@@ -38,7 +38,7 @@ const App = () => (
           <Route path="/community" element={<Community />} />
           <Route path="/login" element={<Login />} />
           <Route path="/member-info" element={<MemberInfo />} />
-          <Route path="/api/teams/*" element={<GroupPage />} />
+          <Route path="/teams" element={<GroupPage />} />
           <Route path="/profile" element={<MyPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

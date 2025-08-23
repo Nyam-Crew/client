@@ -15,7 +15,7 @@ const Navigation = () => {
     {icon: Home, label: '홈', path: '/'},
     {icon: BookOpen, label: '기록', path: '/meal'},
     {icon: Users, label: '커뮤니티', path: '/community'},
-    {icon: UserPlus, label: '그룹', path: '/api/teams'},
+    {icon: UserPlus, label: '그룹', path: '/teams'},
     {icon: User, label: '마이페이지', path: '/profile'},
   ];
 
@@ -74,7 +74,7 @@ const Navigation = () => {
               <div className="hidden md:flex items-center gap-1">
                 {navItems.map((item) => {
                   const Icon = item.icon;
-                  const isActive = item.path === '/api/teams' ? location.pathname.startsWith('/api/teams') : location.pathname === item.path;
+                  const isActive = item.path === '/teams' ? location.pathname.startsWith('/teams') : location.pathname === item.path;
 
                   return (
                       <Link key={item.path} to={item.path}>
@@ -109,7 +109,7 @@ const Navigation = () => {
               <div className="grid grid-cols-5 gap-1 p-2">
                 {navItems.map((item) => {
                   const Icon = item.icon;
-                  const isActive = item.path === '/api/teams' ? location.pathname.startsWith('/api/teams') : location.pathname === item.path;
+                  const isActive = item.path === '/teams' ? location.pathname.startsWith('/teams') : location.pathname === item.path;
 
                   return (
                       <Link key={item.path} to={item.path}>

@@ -5,70 +5,26 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { defaultFetch } from '@/api/defaultFetch';
 
+// API 응답 데이터 인터페이스
+interface TeamRankingDto {
+  teamId: number;
+  teamName: string;
+  averageScore: number;
+  rank: number;
+  rankDelta: number | null;
+}
+
+// 컴포넌트에서 사용할 데이터 인터페이스
 interface GroupRanking {
   rank: number;
   teamId: string;
   name: string;
   weeklyPoints: number;
-  memberCount: number;
-  previousRank?: number;
   change: 'up' | 'down' | 'same';
   changeValue: number;
 }
-
-const mockRankings: GroupRanking[] = [
-  {
-    rank: 1,
-    teamId: '1',
-    name: '매일 운동하기',
-    weeklyPoints: 2450,
-    memberCount: 12,
-    previousRank: 3,
-    change: 'up',
-    changeValue: 2
-  },
-  {
-    rank: 2,
-    teamId: '2',
-    name: '아침 조깅 클럽',
-    weeklyPoints: 2380,
-    memberCount: 20,
-    previousRank: 1,
-    change: 'down',
-    changeValue: 1
-  },
-  {
-    rank: 3,
-    teamId: '3',
-    name: '다이어트 성공기',
-    weeklyPoints: 2200,
-    memberCount: 18,
-    previousRank: 2,
-    change: 'down',
-    changeValue: 1
-  },
-  {
-    rank: 4,
-    teamId: '4',
-    name: '헬스장 러버들',
-    weeklyPoints: 1980,
-    memberCount: 15,
-    previousRank: 4,
-    change: 'same',
-    changeValue: 0
-  },
-  {
-    rank: 5,
-    teamId: '5',
-    name: '홈트레이닝',
-    weeklyPoints: 1850,
-    memberCount: 22,
-    previousRank: 6,
-    change: 'up',
-    changeValue: 1
-  }
-];
 
 const GroupRankingTab = () => {
   const navigate = useNavigate();
@@ -76,27 +32,63 @@ const GroupRankingTab = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 목업 데이터 로딩 시뮬레이션
-    setTimeout(() => {
-      setRankings(mockRankings);
-      setLoading(false);
-    }, 800);
+    const fetchRankings = async () => {
+      try {
+        setLoading(true);
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+        const data: TeamRankingDto[] = await defaultFetch(`/api/ranking/teams/top?limit=5&year=${year}&month=${month}`);
+        
+        const transformedData = data.map((item): GroupRanking => {
+          let change: 'up' | 'down' | 'same' = 'same';
+          let changeValue = 0;
+
+          if (item.rankDelta !== null && item.rankDelta !== 0) {
+            if (item.rankDelta > 0) {
+              change = 'up';
+              changeValue = item.rankDelta;
+            } else { // rankDelta < 0
+              change = 'down';
+              changeValue = Math.abs(item.rankDelta);
+            }
+          }
+
+          return {
+            rank: item.rank,
+            teamId: item.teamId.toString(),
+            name: item.teamName,
+            weeklyPoints: item.averageScore,
+            change,
+            changeValue,
+          };
+        });
+
+        setRankings(transformedData);
+      } catch (error) {
+        console.error("Failed to fetch team rankings:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRankings();
   }, []);
 
   const getRankBadge = (rank: number) => {
     switch (rank) {
       case 1:
-        return <Badge className="bg-[#ffd700] text-[#8b6914] hover:bg-[#ffd700]/80">🥇 1위</Badge>;
+        return <Badge className="bg-[#ffd700] text-[#8b6914] hover:bg-[#ffd700]/80">🥇1위</Badge>;
       case 2:
-        return <Badge className="bg-[#c0c0c0] text-[#4a4a4a] hover:bg-[#c0c0c0]/80">🥈 2위</Badge>;
+        return <Badge className="bg-[#c0c0c0] text-[#4a4a4a] hover:bg-[#c0c0c0]/80">🥈2위</Badge>;
       case 3:
-        return <Badge className="bg-[#cd7f32] text-white hover:bg-[#cd7f32]/80">🥉 3위</Badge>;
+        return <Badge className="bg-[#cd7f32] text-white hover:bg-[#cd7f32]/80">🥉3위</Badge>;
       default:
         return <Badge variant="outline">{rank}위</Badge>;
     }
   };
 
-  const getChangeIcon = (change: GroupRanking['change'], changeValue: number) => {
+  const getChangeIcon = (change: GroupRanking['change']) => {
     if (change === 'up') {
       return <TrendingUp className="h-4 w-4 text-green-600" />;
     } else if (change === 'down') {
@@ -117,7 +109,7 @@ const GroupRankingTab = () => {
   };
 
   const handleGroupClick = (teamId: string) => {
-    navigate(`/api/teams/${teamId}`);
+    navigate(`/teams/${teamId}`);
   };
 
   if (loading) {
@@ -131,7 +123,7 @@ const GroupRankingTab = () => {
           <CardContent>
             <div className="space-y-4">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center space-x-4">
+                <div key={i} className="flex items-center space-x-4 p-2">
                   <Skeleton className="h-8 w-12" />
                   <Skeleton className="h-4 flex-1" />
                   <Skeleton className="h-4 w-20" />
@@ -165,7 +157,6 @@ const GroupRankingTab = () => {
                   <TableHead className="w-20">순위</TableHead>
                   <TableHead>그룹명</TableHead>
                   <TableHead className="text-right">주간 포인트</TableHead>
-                  <TableHead className="text-right">멤버 수</TableHead>
                   <TableHead className="text-right">변동</TableHead>
                 </TableRow>
               </TableHeader>
@@ -183,17 +174,11 @@ const GroupRankingTab = () => {
                       {group.name}
                     </TableCell>
                     <TableCell className="text-right font-mono">
-                      {group.weeklyPoints.toLocaleString()}
+                      {Math.round(group.weeklyPoints).toLocaleString()}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Users className="h-4 w-4" />
-                        {group.memberCount}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {getChangeIcon(group.change, group.changeValue)}
+                        {getChangeIcon(group.change)}
                         <span className={`text-sm ${
                           group.change === 'up' ? 'text-green-600' : 
                           group.change === 'down' ? 'text-red-600' : 'text-gray-400'
@@ -220,7 +205,7 @@ const GroupRankingTab = () => {
                   <div className="flex items-center justify-between mb-2">
                     {getRankBadge(group.rank)}
                     <div className="flex items-center gap-1">
-                      {getChangeIcon(group.change, group.changeValue)}
+                      {getChangeIcon(group.change)}
                       <span className={`text-sm ${
                         group.change === 'up' ? 'text-green-600' : 
                         group.change === 'down' ? 'text-red-600' : 'text-gray-400'
@@ -233,12 +218,8 @@ const GroupRankingTab = () => {
                   <h3 className="font-semibold text-lg mb-2">{group.name}</h3>
                   
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Users className="h-4 w-4" />
-                      <span>{group.memberCount}명</span>
-                    </div>
                     <div className="font-mono font-medium">
-                      {group.weeklyPoints.toLocaleString()}P
+                      {Math.round(group.weeklyPoints).toLocaleString()}P
                     </div>
                   </div>
                 </CardContent>

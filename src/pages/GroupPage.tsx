@@ -23,7 +23,7 @@ const GroupPage = () => {
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
-    navigate(`/api/teams?tab=${value}`);
+    navigate(`/teams?tab=${value}`);
   };
 
   return (
