@@ -1,36 +1,30 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import MealCard from '@/components/meal/MealCard';
 import WaterIntakeDialog from '@/components/water/WaterIntakeDialog';
-import CalendarViewDialog from '@/components/meal/CalendarViewDialog';
+import CalendarViewDialog from '@/components/meal-log/CalendarViewDialog';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  Plus, 
-  Check,
+import { defaultFetch } from '@/api/defaultFetch';
+import {
   Sun,
   Mountain,
   Moon,
   Apple,
-  Droplets,
   ChevronLeft,
   ChevronRight,
   X,
   Utensils,
   Calendar,
-  Target,
-  CheckCircle,
-  User,
-  Activity,
-  Zap
+  ClipboardList,
+  Target
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import MyDayTab from '@/components/meal-log/MyDayTab';
+import WhatIAteTab from '@/components/meal-log/WhatIAteTab';
+import DailyMissionsTab from '@/components/meal-log/DailyMissionsTab';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+
 
 interface DayMealData {
   date: string;
@@ -49,16 +43,46 @@ interface DayMealData {
   };
 }
 
+interface DayInsights {
+  memberId: number;
+  nickname: string | null;
+  age: number;
+  bmi: number | null;
+  bmr: number | null;
+  tdee: number | null;
+  recommendedCalories: number | null;
+  totalProtein: number;        // g
+  totalCarbohydrate: number;   // g
+  totalFat: number;            // g
+  totalWater: number;          // ml
+  totalKcal: number;           // kcal
+}
+
+const addDays = (d: Date, days: number) => {
+  const nd = new Date(d);
+  nd.setDate(nd.getDate() + days);
+  return nd;
+};
+const clampToMonth = (year: number, monthIndex0: number, day: number) => {
+  const last = new Date(year, monthIndex0 + 1, 0).getDate();
+  return Math.min(day, last);
+};
+
 const MealRecord = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // 탭/날짜/주 네비 상태
   const [activeTab, setActiveTab] = useState('myDay');
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedMonth, setSelectedMonth] = useState((new Date().getMonth() + 1).toString());
+  const [weekAnchor, setWeekAnchor] = useState(new Date()); // 주(7일) 뷰의 기준일
+  const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth() + 1));
+  const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
+
+  // 기타 상태
   const [selectedMeal, setSelectedMeal] = useState<string | null>(null);
   const [mealDialogOpen, setMealDialogOpen] = useState(false);
   const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
-  const [expandedMeal, setExpandedMeal] = useState<string | null>(null);
   const [waterDialogOpen, setWaterDialogOpen] = useState(false);
   const [waterAmount, setWaterAmount] = useState(1200);
   const [weight, setWeight] = useState(65.5);
@@ -67,967 +91,442 @@ const MealRecord = () => {
   const [loading, setLoading] = useState(true);
   const [dailyMissions, setDailyMissions] = useState<any[]>([]);
   const [missionsLoading, setMissionsLoading] = useState(false);
+  const [insights, setInsights] = useState<DayInsights | null>(null);
 
-  // 사용자 정보 (실제로는 API에서 가져올 데이터)
-  const userInfo = {
-    name: "김건강",
-    height: 170, // cm
-    weight: 65.5, // kg
-    age: 25,
-    gender: "male", // "male" | "female"
-    activityLevel: 1.375 // 1.2(sedentary) ~ 1.9(very active)
-  };
+  // 날짜 문자열 (이 값이 바뀔 때만 insights API 호출)
+  const selectedDateStr = useMemo(
+      () => selectedDate.toISOString().split('T')[0],
+      [selectedDate]
+  );
 
-  // BMI 계산
-  const calculateBMI = (weight: number, height: number) => {
-    const heightInM = height / 100;
-    return weight / (heightInM * heightInM);
-  };
-
-  // BMR 계산 (Harris-Benedict 공식)
-  const calculateBMR = (weight: number, height: number, age: number, gender: string) => {
-    if (gender === "male") {
-      return 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
-    } else {
-      return 447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age);
-    }
-  };
-
-  // TDEE 계산
-  const calculateTDEE = (bmr: number, activityLevel: number) => {
-    return bmr * activityLevel;
-  };
-
-  const bmi = calculateBMI(userInfo.weight, userInfo.height);
-  const bmr = calculateBMR(userInfo.weight, userInfo.height, userInfo.age, userInfo.gender);
-  const tdee = calculateTDEE(bmr, userInfo.activityLevel);
-
-  // BMI 분류
-  const getBMICategory = (bmi: number) => {
-    if (bmi < 18.5) return { text: "저체중", color: "text-blue-600" };
-    if (bmi < 23) return { text: "정상", color: "text-green-600" };
-    if (bmi < 25) return { text: "과체중", color: "text-yellow-600" };
-    return { text: "비만", color: "text-red-600" };
-  };
-
-  const bmiCategory = getBMICategory(bmi);
-
+  // 데이터 로딩 (식사/물/체중) — 예시 목업
   useEffect(() => {
     fetchDayData();
   }, [selectedDate]);
 
+  // 데일리 미션 탭 들어올 때만 호출
   useEffect(() => {
-    if (activeTab === 'dailyMissions') {
-      fetchDailyMissions();
-    }
+    if (activeTab === 'dailyMissions') fetchDailyMissions();
   }, [activeTab]);
 
-  const fetchDayData = async () => {
-    try {
-      setLoading(true);
-      const dateStr = selectedDate.toISOString().split('T')[0];
-      
-      const mockData: DayMealData = {
-        date: dateStr,
-        meals: {
-          BREAKFAST: { totalKcal: 0, items: [] },
-          LUNCH: { totalKcal: 499, items: [{ id: '1', name: '당근라페 샌드위치', amount: '1인분 (283g)', kcal: 499 }] },
-          DINNER: { totalKcal: 0, items: [] },
-          SNACK: { totalKcal: 145, items: [{ id: '2', name: '아몬드', amount: '1줌 (28g)', kcal: 145 }] }
-        },
-        water: 1200,
-        weight: 65.4,
-        summaryTotalKcal: 644
-      };
-      
-      setDayData(mockData);
-      setWaterAmount(mockData.water);
-      if (mockData.weight) {
-        setWeight(mockData.weight);
+  // selectedDate 변경 시 주 앵커/연/월 동기화
+  useEffect(() => {
+    setWeekAnchor(selectedDate);
+    setSelectedYear(String(selectedDate.getFullYear()));
+    setSelectedMonth(String(selectedDate.getMonth() + 1));
+  }, [selectedDate]);
+
+  // 연/월 셀렉트 변경 시 selectedDate 이동 (일자는 가능한 유지, 말일 보정)
+  useEffect(() => {
+    const y = Number(selectedYear);
+    const mIdx = Number(selectedMonth) - 1;
+    const d = clampToMonth(y, mIdx, selectedDate.getDate());
+
+    // 값이 같으면 setState 하지 않음 (루프 방지)
+    if (
+        selectedDate.getFullYear() !== y ||
+        selectedDate.getMonth() !== mIdx ||
+        selectedDate.getDate() !== d
+    ) {
+      setSelectedDate(new Date(y, mIdx, d));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedYear, selectedMonth]);
+
+  // ✅ insights: 날짜 문자열이 바뀔 때만 호출
+  useEffect(() => {
+    const fetchInsights = async () => {
+      try {
+        const data = await defaultFetch(`/api/meal/day/insights?date=${selectedDateStr}`, { method: 'GET' });
+        setInsights(data as DayInsights);
+      } catch (e) {
+        console.error('failed to fetch insights', e);
+        setInsights(null);
       }
-    } catch (error) {
-      console.error('Failed to fetch day data:', error);
-      toast({
-        title: "오류",
-        description: "데이터를 불러오는데 실패했습니다.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    };
+    fetchInsights();
+  }, [selectedDateStr]);
+
+  // 목업/예시 API
+  const fetchDayData = async () => {
+    setLoading(true);
+    const dateStr = selectedDate.toISOString().split('T')[0];
+    const mockData: DayMealData = {
+      date: dateStr,
+      meals: {
+        BREAKFAST: { totalKcal: 0, items: [] },
+        LUNCH: {
+          totalKcal: 499,
+          items: [{ id: '1', name: '당근라페 샌드위치', amount: '1인분 (283g)', kcal: 499 }]
+        },
+        DINNER: { totalKcal: 0, items: [] },
+        SNACK: {
+          totalKcal: 145,
+          items: [{ id: '2', name: '아몬드', amount: '1줌 (28g)', kcal: 145 }]
+        }
+      },
+      water: 1200,
+      weight: 65.4,
+      summaryTotalKcal: 644
+    };
+    setDayData(mockData);
+    setWaterAmount(mockData.water);
+    if (mockData.weight) setWeight(mockData.weight);
+    setLoading(false);
   };
 
-  const handleMealClick = (mealId: string) => {
-    navigate(`/meal-detail/${mealId}`);
-  };
+  // 라우팅 시 날짜 파라미터 항상 포함
+  const handleMealClick = (mealId: string) =>
+      navigate(`/meal-detail/${mealId}?d=${selectedDateStr}`);
+  const handleAddFood = (mealType: string) =>
+      navigate(`/food-search?mealType=${mealType}&d=${selectedDateStr}`);
 
-  const handleAddFoodClick = () => {
-    navigate('/food-search');
-  };
-
-  const handleAddFood = (mealType: string) => {
-    navigate(`/food-search?mealType=${mealType}`);
-  };
-
-  const handleToggleExpand = (mealId: string) => {
-    setExpandedMeal(expandedMeal === mealId ? null : mealId);
-  };
-
-  const handleEditFood = (foodId: string) => {
-    console.log('Edit food:', foodId);
-  };
-
-  const handleDeleteFood = (foodId: string) => {
-    console.log('Delete food:', foodId);
-  };
-
-  const handleWaterClick = () => {
-    setWaterDialogOpen(true);
-  };
-
+  // 물/체중 처리
+  const handleWaterClick = () => setWaterDialogOpen(true);
   const handleWaterSave = async (amount: number) => {
-    try {
-      const dateStr = selectedDate.toISOString().split('T')[0];
-      
-      setWaterAmount(amount);
-      
-      toast({
-        title: "저장 완료",
-        description: "물 섭취량이 저장되었습니다.",
-      });
-    } catch (error) {
-      console.error('Failed to save water:', error);
-      toast({
-        title: "오류",
-        description: "물 섭취량 저장에 실패했습니다.",
-        variant: "destructive",
-      });
-    }
+    setWaterAmount(amount);
+    toast({ title: "저장 완료", description: "물 섭취량이 저장되었습니다." });
   };
-
   const handleWeightSave = async () => {
     if (!weight || weight <= 0) {
-      toast({
-        title: "오류",
-        description: "올바른 체중을 입력해주세요",
-        variant: "destructive",
-      });
+      toast({ title: "오류", description: "올바른 체중을 입력해주세요", variant: "destructive" });
       return;
     }
-
-    try {
-      setWeightLoading(true);
-      
-      toast({
-        title: "저장하였습니다",
-        description: `체중 ${weight}kg이 저장되었습니다.`,
-      });
-      
-    } catch (error) {
-      console.error('Failed to save weight:', error);
-      toast({
-        title: "오류",
-        description: "저장에 실패했어요. 잠시 후 다시 시도해주세요.",
-        variant: "destructive",
-      });
-    } finally {
-      setWeightLoading(false);
-    }
+    setWeightLoading(true);
+    toast({ title: "저장하였습니다", description: `체중 ${weight}kg이 저장되었습니다.` });
+    setWeightLoading(false);
   };
 
+  // 데일리 미션
   const fetchDailyMissions = async () => {
+    setMissionsLoading(true);
     try {
-      setMissionsLoading(true);
-      
-      const mockMissions = [
-        {
-          "dailyMissionId": 1,
-          "missionId": 9,
-          "category": "ACTIVITY",
-          "title": "요가 15분",
-          "type": "MANUAL",
-          "missionDate": "2025-08-21",
-          "completed": false,
-          "completedBy": "NONE"
-        },
-        {
-          "dailyMissionId": 2,
-          "missionId": 6,
-          "category": "ACTIVITY",
-          "title": "푸쉬업 20개",
-          "type": "MANUAL",
-          "missionDate": "2025-08-21",
-          "completed": false,
-          "completedBy": "NONE"
-        },
-        {
-          "dailyMissionId": 3,
-          "missionId": 5,
-          "category": "ACTIVITY",
-          "title": "계단 오르내리기 10분",
-          "type": "MANUAL",
-          "missionDate": "2025-08-21",
-          "completed": true,
-          "completedBy": "NONE"
-        },
-        {
-          "dailyMissionId": 4,
-          "missionId": 8,
-          "category": "ACTIVITY",
-          "title": "스트레칭 5분",
-          "type": "MANUAL",
-          "missionDate": "2025-08-21",
-          "completed": false,
-          "completedBy": "NONE"
-        },
-        {
-          "dailyMissionId": 5,
-          "missionId": 4,
-          "category": "ACTIVITY",
-          "title": "자전거 타기 20분",
-          "type": "MANUAL",
-          "missionDate": "2025-08-21",
-          "completed": false,
-          "completedBy": "NONE"
-        }
-      ];
-      
-      setDailyMissions(mockMissions);
+      const data = await defaultFetch('/api/missions/today');
+      setDailyMissions(data);
     } catch (error) {
-      console.error('Failed to fetch daily missions:', error);
+      console.error(error);
       toast({
         title: "오류",
         description: "데일리 미션을 불러오는데 실패했습니다.",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setMissionsLoading(false);
     }
   };
-
   const handleMissionComplete = async (dailyMissionId: number) => {
     try {
-      setDailyMissions(prev => 
-        prev.map(mission => 
-          mission.dailyMissionId === dailyMissionId 
-            ? { ...mission, completed: true }
-            : mission
-        )
+      await defaultFetch(`/api/missions/${dailyMissionId}/complete`, {
+        method: 'POST',
+        body: { complete: true }
+      });
+      setDailyMissions(prev =>
+          prev.map(m => (m.dailyMissionId === dailyMissionId ? { ...m, completed: true } : m))
       );
-      
-      toast({
-        title: "완료",
-        description: "미션이 완료되었습니다!",
-      });
+      toast({ title: "완료", description: "미션이 완료되었습니다!" });
     } catch (error) {
-      console.error('Failed to complete mission:', error);
-      toast({
-        title: "오류",
-        description: "미션 완료 처리에 실패했습니다.",
-        variant: "destructive",
-      });
+      console.error(error);
+      toast({ title: "오류", description: "미션 완료에 실패했습니다.", variant: "destructive" });
     }
   };
 
+  // 스킵/카드 클릭
   const handleSkipMeal = async (mealType: string) => {
-    try {
-      const dateStr = selectedDate.toISOString().split('T')[0];
-      
-      setMealDialogOpen(false);
-      
-      toast({
-        title: "등록 완료",
-        description: "안먹었어요가 등록되었습니다.",
-      });
-      
-      await fetchDayData();
-    } catch (error) {
-      console.error('Failed to skip meal:', error);
-      toast({
-        title: "오류", 
-        description: "등록에 실패했습니다.",
-        variant: "destructive",
-      });
-    }
+    setMealDialogOpen(false);
+    toast({ title: "등록 완료", description: "'안먹었어요'가 등록되었습니다." });
+    await fetchDayData();
   };
-
   const handleMealCardClick = (mealId: string, status: string) => {
-    if (status === 'empty') {
-      return;
-    } else {
-      handleMealClick(mealId);
-    }
+    if (status !== 'empty') handleMealClick(mealId);
   };
 
-  const hasFoodItems = (foods: any[]) => {
-    return foods && foods.length > 0;
-  };
+  const hasFoodItems = (foods: any[]) => foods && foods.length > 0;
 
-  const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
-  
-  const generateDateRange = () => {
-    const dates = [];
-    for (let i = -3; i <= 3; i++) {
-      const date = new Date();
-      date.setDate(date.getDate() + i);
-      dates.push(date);
-    }
-    return dates;
-  };
+  // 주 네비게이션 렌더링 데이터
+  const dateRange = (() => {
+    const arr: Date[] = [];
+    for (let i = -3; i <= 3; i++) arr.push(addDays(weekAnchor, i));
+    return arr;
+  })();
+  const goPrevWeek = () => setWeekAnchor(addDays(weekAnchor, -7));
+  const goNextWeek = () => setWeekAnchor(addDays(weekAnchor, +7));
 
-  const dateRange = generateDateRange();
+  // ---- insights 우선 사용, 퍼센트만 계산 ----
+  const consumedKcal = insights?.totalKcal ?? 0;
+  const targetKcal   = insights?.recommendedCalories ?? 0;
 
-  const todayStats = dayData ? {
-    calories: { current: dayData.summaryTotalKcal, target: Math.round(tdee), remaining: Math.round(tdee - dayData.summaryTotalKcal) },
-    carbs: { percentage: 46, current: 78, target: 163 },
-    protein: { percentage: 14, current: 23, target: 51 },
-    fat: { percentage: 40, current: 30, target: 32 }
-  } : {
-    calories: { current: 0, target: Math.round(tdee), remaining: Math.round(tdee) },
-    carbs: { percentage: 0, current: 0, target: 163 },
-    protein: { percentage: 0, current: 0, target: 51 },
-    fat: { percentage: 0, current: 0, target: 32 }
-  };
+  // 퍼센트(구성 비율)만 계산
+  const carbsPct =
+      consumedKcal > 0 && insights
+          ? (insights.totalCarbohydrate * 4 * 100) / consumedKcal
+          : 0;
+  const proteinPct =
+      consumedKcal > 0 && insights
+          ? (insights.totalProtein * 4 * 100) / consumedKcal
+          : 0;
+  const fatPct =
+      consumedKcal > 0 && insights
+          ? (insights.totalFat * 9 * 100) / consumedKcal
+          : 0;
 
-  const mealCards = dayData ? [
-    { 
-      id: 'breakfast', 
-      name: '아침', 
-      icon: Sun, 
-      totalKcal: dayData.meals.BREAKFAST.totalKcal,
-      foods: dayData.meals.BREAKFAST.items || []
+  const todayStats = {
+    calories: {
+      current: consumedKcal,
+      target: targetKcal,
+      // 퍼센트 외 계산 금지 요건에 맞춰 remaining 은 0(표시 로직은 MyDayTab에서 분기)
+      remaining: 0,
     },
-    { 
-      id: 'lunch', 
-      name: '점심', 
-      icon: Mountain, 
-      totalKcal: dayData.meals.LUNCH.totalKcal,
-      foods: dayData.meals.LUNCH.items || []
-    },
-    { 
-      id: 'dinner', 
-      name: '저녁', 
-      icon: Moon, 
-      totalKcal: dayData.meals.DINNER.totalKcal,
-      foods: dayData.meals.DINNER.items || []
-    },
-    { 
-      id: 'snack', 
-      name: '간식', 
-      icon: Apple, 
-      totalKcal: dayData.meals.SNACK.totalKcal,
-      foods: dayData.meals.SNACK.items || []
-    }
-  ] : [];
+    carbs:   { percentage: Math.max(0, Math.min(100, carbsPct)),   current: insights?.totalCarbohydrate ?? 0, target: 0 },
+    protein: { percentage: Math.max(0, Math.min(100, proteinPct)), current: insights?.totalProtein ?? 0,      target: 0 },
+    fat:     { percentage: Math.max(0, Math.min(100, fatPct)),     current: insights?.totalFat ?? 0,          target: 0 },
+  };
 
-  const caloriePercentage = (todayStats.calories.current / todayStats.calories.target) * 100;
+  const mealCards = dayData
+      ? [
+        { id: 'breakfast', name: '아침', icon: Sun, totalKcal: dayData.meals.BREAKFAST.totalKcal, foods: dayData.meals.BREAKFAST.items || [] },
+        { id: 'lunch', name: '점심', icon: Mountain, totalKcal: dayData.meals.LUNCH.totalKcal, foods: dayData.meals.LUNCH.items || [] },
+        { id: 'dinner', name: '저녁', icon: Moon, totalKcal: dayData.meals.DINNER.totalKcal, foods: dayData.meals.DINNER.items || [] },
+        { id: 'snack', name: '간식', icon: Apple, totalKcal: dayData.meals.SNACK.totalKcal, foods: dayData.meals.SNACK.items || [] }
+      ]
+      : [];
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#fffff5' }}>
-      {/* 상단 월 선택 및 캘린더 바 */}
-      <div className="bg-white px-4 py-3 border-b">
-        <div className="flex items-center justify-between mb-3">
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Array.from({ length: 12 }, (_, i) => (
-                <SelectItem key={i + 1} value={(i + 1).toString()}>
-                  {i + 1}월
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/record/calendar')}
-            className="p-2"
-          >
-            <Calendar size={24} className="text-gray-600" />
-          </Button>
-        </div>
-        
-        {/* 날짜 선택 바 */}
-        <div className="flex items-center justify-between">
-          <ChevronLeft size={24} className="text-gray-600" />
-          <div className="flex gap-1 overflow-x-auto">
-            {dateRange.map((date, index) => {
-              const isToday = date.toDateString() === new Date().toDateString();
-              const isSelected = date.toDateString() === selectedDate.toDateString();
-              const isDisabled = activeTab === 'dailyMissions' && !isToday;
-              
-              return (
-                <button
-                  key={index}
-                  onClick={() => !isDisabled && setSelectedDate(date)}
-                  disabled={isDisabled}
-                  className={`flex flex-col items-center px-3 py-2 rounded-lg min-w-[50px] ${
-                    isDisabled
-                      ? 'text-gray-300 cursor-not-allowed'
-                      : isSelected 
-                        ? 'bg-gray-800 text-white' 
-                        : isToday 
-                          ? 'bg-gray-200 text-gray-800' 
-                          : 'text-gray-600'
-                  }`}
-                >
-                  <span className="text-xs">{weekDays[date.getDay()]}</span>
-                  <span className="text-sm font-semibold">{date.getDate()}</span>
-                </button>
-              );
-            })}
-          </div>
-          <ChevronRight size={24} className="text-gray-600" />
-        </div>
-      </div>
+      <div className="min-h-screen bg-gray-50" style={{ backgroundColor: '#fffff5' }}>
+        {/* 상단 바 */}
+        <div className="bg-white px-4 py-3 border-b">
+          {/* 연/월 셀렉트 + 캘린더 버튼 */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              {/* 연도 */}
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 11 }, (_, i) => {
+                    const year = new Date().getFullYear() - 5 + i; // 현재-5 ~ 현재+5
+                    return (
+                        <SelectItem key={year} value={String(year)}>
+                          {year}년
+                        </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
 
-      {/* 탭 */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div style={{ backgroundColor: '#fffff5' }} className="px-4">
-          <TabsList className="w-full bg-transparent border-none">
-            <TabsTrigger 
-              value="myDay" 
-              className="flex-1 text-gray-600 rounded-lg transition-all duration-200 hover:text-gray-800 data-[state=active]:text-black"
-              style={{ backgroundColor: activeTab === 'myDay' ? '#fffff5' : '#f8f7ec' }}
+              {/* 월 */}
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 12 }, (_, i) => (
+                      <SelectItem key={i + 1} value={String(i + 1)}>
+                        {i + 1}월
+                      </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* 오늘 버튼 */}
+              <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const today = new Date();
+                    setSelectedDate(today);
+                    setWeekAnchor(today);
+                  }}
+              >
+                오늘
+              </Button>
+            </div>
+
+            <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/record/calendar')}
+                className="p-2"
             >
-              나의 하루
+              <Calendar size={24} className="text-gray-600" />
+            </Button>
+          </div>
+
+          {/* 주 단위 네비게이션 */}
+          <div className="flex items-center justify-between">
+            <button onClick={goPrevWeek} className="p-2 hover:opacity-80">
+              <ChevronLeft size={24} className="text-gray-600" />
+            </button>
+
+            <div className="flex gap-1 overflow-x-auto">
+              {dateRange.map((date, idx) => {
+                const isToday = date.toDateString() === new Date().toDateString();
+                const isSelected = date.toDateString() === selectedDate.toDateString();
+                const isDisabled = activeTab === 'dailyMissions' && !isToday;
+                return (
+                    <button
+                        key={idx}
+                        onClick={() => !isDisabled && setSelectedDate(date)}
+                        disabled={isDisabled}
+                        className={`flex flex-col items-center px-3 py-2 rounded-lg min-w-[50px] ${
+                            isDisabled
+                                ? 'text-gray-300 cursor-not-allowed'
+                                : isSelected
+                                    ? 'bg-gray-800 text-white'
+                                    : isToday
+                                        ? 'bg-gray-200 text-gray-800'
+                                        : 'text-gray-600'
+                        }`}
+                    >
+                      <span className="text-xs">{['일','월','화','수','목','금','토'][date.getDay()]}</span>
+                      <span className="text-sm font-semibold">{date.getDate()}</span>
+                    </button>
+                );
+              })}
+            </div>
+
+            <button onClick={goNextWeek} className="p-2 hover:opacity-80">
+              <ChevronRight size={24} className="text-gray-600" />
+            </button>
+          </div>
+        </div>
+
+        {/* 탭 */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="myDay" className="flex items-center gap-2">
+              <ClipboardList size={16} />
+              <span>나의 하루</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="whatIAte" 
-              className="flex-1 text-gray-600 rounded-lg transition-all duration-200 hover:text-gray-800 data-[state=active]:text-black"
-              style={{ backgroundColor: activeTab === 'whatIAte' ? '#fffff5' : '#f8f7ec' }}
-            >
-              먹었어요
+            <TabsTrigger value="whatIAte" className="flex items-center gap-2">
+              <Utensils size={16} />
+              <span>먹었어요</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="dailyMissions" 
-              className="flex-1 text-gray-600 rounded-lg transition-all duration-200 hover:text-gray-800 data-[state=active]:text-black"
-              style={{ backgroundColor: activeTab === 'dailyMissions' ? '#fffff5' : '#f8f7ec' }}
-            >
-              데일리 미션
+            <TabsTrigger value="dailyMissions" className="flex items-center gap-2">
+              <Target size={16} />
+              <span>데일리 미션</span>
             </TabsTrigger>
           </TabsList>
-        </div>
 
-        {/* 나의 하루 탭 - 개선된 레이아웃 */}
-        <TabsContent value="myDay" className="px-4 pt-6 pb-8 min-h-screen" style={{ backgroundColor: '#fffff5' }}>
-          
-          {/* 인사말 카드 */}
-          <Card className="mb-6 shadow-sm border-0" style={{ backgroundColor: '#c2d595' }}>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="text-2xl">👋</div>
-                <div>
-                  <h2 className="text-lg font-bold text-gray-800">안녕하세요, {userInfo.name}님!</h2>
-                  <p className="text-sm text-gray-600">오늘도 건강한 하루 시작해볼까요?</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <TabsContent value="myDay">
+            <MyDayTab
+                userInfo={{ name: insights?.nickname ?? '사용자' }}
+                bmi={insights?.bmi ?? null}
+                // BMI 범주 계산은 하지 않고, 중립값 전달(필요시 MyDayTab에서 처리)
+                bmiCategory={{ text: '', color: 'text-gray-400' }}
+                bmr={insights?.bmr ?? null}
+                tdee={insights?.tdee ?? null}
+                todayStats={todayStats}
+            />
+          </TabsContent>
 
-          {/* 기본 정보 카드 (BMI, BMR, TDEE) */}
-          <Card className="mb-6 shadow-sm border-0 bg-white">
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                <User size={20} className="text-primary" />
-                건강 정보
-              </h3>
-              
-              <div className="grid grid-cols-1 gap-4">
-                {/* BMI */}
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <div className="text-sm text-muted-foreground">BMI (체질량지수)</div>
-                    <div className="text-lg font-bold">{bmi.toFixed(1)}</div>
-                  </div>
-                  <div className={`text-sm font-medium ${bmiCategory.color}`}>
-                    {bmiCategory.text}
-                  </div>
-                </div>
-
-                {/* BMR */}
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <div className="text-sm text-muted-foreground">BMR (기초대사량)</div>
-                    <div className="text-lg font-bold">{Math.round(bmr)} kcal</div>
-                  </div>
-                  <Activity size={20} className="text-blue-500" />
-                </div>
-
-                {/* TDEE */}
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <div className="text-sm text-muted-foreground">TDEE (하루 총 소비량)</div>
-                    <div className="text-lg font-bold">{Math.round(tdee)} kcal</div>
-                  </div>
-                  <Zap size={20} className="text-orange-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 칼로리 현황 카드 */}
-          <Card className="mb-6 shadow-sm border-0 bg-white">
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-6 text-center">오늘의 칼로리</h3>
-              
-              <div className="text-center mb-6">
-                <div className="text-4xl font-bold text-primary mb-2">{todayStats.calories.current}</div>
-                <div className="text-lg text-muted-foreground">섭취한 칼로리</div>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">목표 칼로리</span>
-                  <span className="font-semibold">{todayStats.calories.target} kcal</span>
-                </div>
-                
-                <Progress 
-                  value={Math.min(caloriePercentage, 100)} 
-                  className="w-full h-3"
-                />
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">더 먹을 수 있는 칼로리</span>
-                  <span className={`font-bold ${todayStats.calories.remaining > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {Math.abs(todayStats.calories.remaining)} kcal
-                  </span>
-                </div>
-              </div>
-              
-              {todayStats.calories.remaining > 0 && (
-                <div className="mt-4 p-3 bg-green-50 rounded-lg text-center">
-                  <span className="text-green-700 font-medium text-sm">
-                    {todayStats.calories.remaining}kcal 더 드셔도 괜찮아요! 💪
-                  </span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          
-          {/* 영양소 현황 카드 */}
-          <Card className="shadow-sm border-0 bg-white">
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-6 text-center">영양소 현황</h3>
-              
-              <div className="space-y-5">
-                {/* 탄수화물 */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-orange-400 rounded-full"></div>
-                      <span className="text-sm font-medium text-foreground">탄수화물</span>
-                    </div>
-                    <span className="text-sm font-bold text-foreground">
-                      {todayStats.carbs.current}g / {todayStats.carbs.target}g
-                    </span>
-                  </div>
-                  <Progress 
-                    value={todayStats.carbs.percentage} 
-                    className="w-full h-2"
-                  />
-                  <div className="text-xs text-muted-foreground text-right">
-                    {todayStats.carbs.percentage}%
-                  </div>
-                </div>
-                
-                {/* 단백질 */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-red-400 rounded-full"></div>
-                      <span className="text-sm font-medium text-foreground">단백질</span>
-                    </div>
-                    <span className="text-sm font-bold text-foreground">
-                      {todayStats.protein.current}g / {todayStats.protein.target}g
-                    </span>
-                  </div>
-                  <Progress 
-                    value={todayStats.protein.percentage} 
-                    className="w-full h-2"
-                  />
-                  <div className="text-xs text-muted-foreground text-right">
-                    {todayStats.protein.percentage}%
-                  </div>
-                </div>
-                
-                {/* 지방 */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-blue-400 rounded-full"></div>
-                      <span className="text-sm font-medium text-foreground">지방</span>
-                    </div>
-                    <span className="text-sm font-bold text-foreground">
-                      {todayStats.fat.current}g / {todayStats.fat.target}g
-                    </span>
-                  </div>
-                  <Progress 
-                    value={todayStats.fat.percentage} 
-                    className="w-full h-2"
-                  />
-                  <div className="text-xs text-muted-foreground text-right">
-                    {todayStats.fat.percentage}%
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-        </TabsContent>
-
-        {/* 먹었어요 탭 */}
-        <TabsContent value="whatIAte" className="px-4 pt-6 pb-8 space-y-6" style={{ backgroundColor: '#fffff5' }}>
-          
-          {/* 체중 입력 카드 */}
-          <Card className="shadow-sm border border-border/50 bg-gradient-to-r from-primary/5 to-secondary/10">
-            <CardContent className="p-4">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <h3 className="text-base font-semibold text-foreground mb-1">오늘의 체중</h3>
-                  <p className="text-sm text-muted-foreground">매일 체중을 기록해보세요</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      value={weight}
-                      onChange={(e) => setWeight(parseFloat(e.target.value) || 0)}
-                      className="w-20 text-center text-lg font-semibold border-primary/20 focus:border-primary"
-                      step="0.1"
-                      min="0"
-                      max="500"
-                      placeholder="65.5"
-                      aria-label="오늘의 체중"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          handleWeightSave();
-                        }
-                      }}
-                    />
-                    <span className="text-sm font-medium text-foreground">kg</span>
-                  </div>
-                  <Button 
-                    size="sm" 
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground px-4"
-                    onClick={handleWeightSave}
-                    disabled={weightLoading}
-                    aria-label="저장"
-                  >
-                    {weightLoading ? '저장중...' : '저장'}
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 식사별 카드 - 2x2 그리드 */}
-          {loading ? (
-            <div className="grid grid-cols-2 gap-4">
-              {[1,2,3,4].map((i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardContent className="p-4 h-32">
-                    <div className="bg-muted rounded h-full"></div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-4">
-              {mealCards.map((meal) => (
-                <Card
-                  key={meal.id}
-                  className="cursor-pointer hover:shadow-md transition-shadow border border-border/50"
-                  onClick={() => handleMealCardClick(meal.id, meal.foods.length > 0 ? 'filled' : 'empty')}
-                >
-                  <CardContent className="p-4 text-center">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="text-primary">
-                        <meal.icon size={24} />
-                      </div>
-                      {meal.foods.length > 0 && (
-                        <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                          <Check size={12} className="text-white" />
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="text-foreground font-semibold text-sm mb-2">{meal.name}</div>
-                    
-                     {meal.foods.length > 0 ? (
-                      <div className="text-foreground font-bold text-lg">{meal.totalKcal} kcal</div>
-                    ) : (
-                      <div className="space-y-2">
-                        <p className="text-muted-foreground text-xs mb-3">아직 기록이 없어요</p>
-                        <div className="space-y-1">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="w-full text-xs py-1"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAddFood(meal.id);
-                            }}
-                          >
-                            음식 등록
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="w-full text-xs py-1 text-muted-foreground"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleSkipMeal(meal.id);
-                            }}
-                          >
-                            안먹었어요
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          {/* 물 섭취 카드 (전체 폭) */}
-          <div className="w-full">
-            <Card 
-              className="border-none cursor-pointer transform hover:scale-[1.02] transition-all duration-200 shadow-lg hover:shadow-xl" 
-              style={{ backgroundColor: '#c2d595' }}
-              onClick={() => handleWaterClick()}
-            >
-              <CardContent className="p-6 text-center">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="text-blue-600">
-                    <Droplets size={32} />
-                  </div>
-                  <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center shadow-sm">
-                    <Check size={16} className="text-white" />
-                  </div>
-                </div>
-                
-                <div className="text-gray-800 mb-3 font-semibold text-lg">물</div>
-                <div className="text-gray-700 font-bold text-lg">{waterAmount}ml</div>
-              </CardContent>
-            </Card>
-          </div>
-
-        </TabsContent>
-
-        {/* 데일리 미션 탭 */}
-        <TabsContent value="dailyMissions" className="px-4 pt-6 pb-8 space-y-4" style={{ backgroundColor: '#fffff5' }}>
-          <div className="text-center mb-6">
-            <h2 className="text-xl font-bold text-foreground mb-2">오늘의 미션</h2>
-            <p className="text-sm text-muted-foreground">
-              완료한 미션: {dailyMissions.filter(m => m.completed).length} / {dailyMissions.length}
-            </p>
-          </div>
-
-          {missionsLoading ? (
-            <div className="space-y-3">
-              {[1,2,3,4,5].map((i) => (
-                <Card key={i} className="animate-pulse border border-border/50">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-6 h-6 rounded-full bg-muted"></div>
-                        <div className="h-4 bg-muted rounded w-32"></div>
-                      </div>
-                      <div className="h-8 bg-muted rounded w-16"></div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {dailyMissions.map((mission) => (
-                <Card key={mission.dailyMissionId} className="border border-border/50">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                          mission.completed 
-                            ? 'bg-green-500 text-white' 
-                            : 'border-2 border-gray-300'
-                        }`}>
-                          {mission.completed && <Check size={16} />}
-                        </div>
-                        <span className={`font-medium ${
-                          mission.completed 
-                            ? 'text-green-600 line-through' 
-                            : 'text-foreground'
-                        }`}>
-                          {mission.title}
-                        </span>
-                      </div>
-                      <Button
-                        variant={mission.completed ? "outline" : "default"}
-                        size="sm"
-                        onClick={() => handleMissionComplete(mission.dailyMissionId)}
-                        disabled={mission.completed}
-                        className={mission.completed ? "text-green-600 border-green-200" : ""}
-                      >
-                        {mission.completed ? '완료됨' : '완료'}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
-            <CardContent className="p-6 text-center">
-              <Target className="mx-auto mb-3 text-green-600" size={32} />
-              <h3 className="font-semibold text-lg mb-2">
-                {dailyMissions.filter(m => m.completed).length === dailyMissions.length 
-                  ? '🎉 모든 미션 완료!' 
-                  : '오늘도 화이팅!'}
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                {dailyMissions.filter(m => m.completed).length === dailyMissions.length
-                  ? '모든 미션을 완료했습니다. 정말 대단해요!'
-                  : `${dailyMissions.length - dailyMissions.filter(m => m.completed).length}개의 미션이 남았어요.`}
-              </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* 식사 등록 팝업 */}
-      <Dialog open={mealDialogOpen} onOpenChange={setMealDialogOpen}>
-        <DialogContent className="w-[90%] max-w-md h-[80vh] flex flex-col">
-          <DialogHeader className="flex flex-row items-center justify-between border-b pb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                {selectedMeal === 'lunch' && <Mountain size={20} className="text-green-600" />}
-                {selectedMeal === 'breakfast' && <Sun size={20} className="text-green-600" />}
-                {selectedMeal === 'dinner' && <Moon size={20} className="text-green-600" />}
-                {selectedMeal === 'snack' && <Apple size={20} className="text-green-600" />}
-              </div>
-              <DialogTitle className="text-lg font-semibold">
-                {selectedMeal === 'breakfast' && '아침'}
-                {selectedMeal === 'lunch' && '점심'}
-                {selectedMeal === 'dinner' && '저녁'}
-                {selectedMeal === 'snack' && '간식'}
-              </DialogTitle>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setMealDialogOpen(false)}
-              className="p-2"
-            >
-              <X size={20} />
-            </Button>
-          </DialogHeader>
-
-          {/* 추가한 음식 리스트 영역 */}
-          <div className="flex-1 py-6">
-            {/* 빈 상태 */}
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                <Utensils size={32} className="text-gray-400" />
-              </div>
-              <div className="text-gray-500 text-sm">음식 사진 추가</div>
-            </div>
-
-            {/* 추가한 음식 정보 */}
-            <div className="mt-6">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-blue-600 font-medium">추가한 음식 1</span>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="text-sm">시간 입력</Button>
-                  <Button variant="outline" size="sm" className="text-sm">세트 저장</Button>
-                </div>
-              </div>
-
-              {/* 샘플 음식 항목 */}
-              <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="font-medium text-gray-800">당근라페 샌드위치</div>
-                    <div className="text-sm text-gray-600">1인분 (283g)</div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-lg">499 kcal</span>
-                    <Button variant="ghost" size="sm" className="p-1">
-                      <X size={16} />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 하단 총 칼로리 및 영양소 정보 */}
-          <div className="border-t pt-4 pb-6">
-            {/* 총 칼로리 */}
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-lg font-bold">총 499kcal</span>
-              <Button variant="ghost" size="sm" className="text-blue-600">
-                영양소 상세 →
-              </Button>
-            </div>
-
-            {/* 영양소 비율 바 */}
-            <div className="mb-4">
-              <div className="flex gap-1 h-2 rounded-full overflow-hidden mb-2">
-                <div className="bg-black flex-[45]"></div>
-                <div className="bg-yellow-400 flex-[16]"></div>
-                <div className="bg-blue-600 flex-[39]"></div>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>• 순탄수 59g</span>
-                <span>• 단백질 21g</span>
-                <span>• 지방 23g</span>
-              </div>
-            </div>
-
-            {/* 음식 추가 및 안먹었어요 버튼 */}
-            <div className="flex gap-2">
-              <Button 
-                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-3"
-                onClick={() => {
-                  setMealDialogOpen(false);
-                  handleAddFood(selectedMeal || '');
+          <TabsContent value="whatIAte">
+            <WhatIAteTab
+                dateKey={selectedDateStr}
+                weight={weight}
+                setWeight={setWeight}
+                handleWeightSave={handleWeightSave}
+                weightLoading={weightLoading}
+                loading={loading}
+                mealCards={mealCards}
+                handleMealCardClick={handleMealCardClick}
+                handleAddFood={handleAddFood}
+                handleSkipMeal={handleSkipMeal}
+                waterAmount={waterAmount}
+                handleWaterClick={(date, current) => {
+                  setWaterAmount(current);        // 다이얼로그 초기 표시값
+                  setWaterDialogOpen(true);       // 열기
                 }}
-                disabled={!selectedMeal || (dayData && hasFoodItems(dayData.meals[selectedMeal.toUpperCase() as keyof typeof dayData.meals]?.items || []))}
-              >
-                음식 등록
+                onWaterAmountFetched={setWaterAmount}
+            />
+          </TabsContent>
+
+          <TabsContent value="dailyMissions">
+            <DailyMissionsTab
+                dailyMissions={dailyMissions}
+                missionsLoading={missionsLoading}
+                handleMissionComplete={handleMissionComplete}
+            />
+          </TabsContent>
+        </Tabs>
+
+        {/* 식사 등록 다이얼로그 */}
+        <Dialog open={mealDialogOpen} onOpenChange={setMealDialogOpen}>
+          <DialogContent className="w-[90%] max-w-md h-[80vh] flex flex-col">
+            <DialogHeader className="flex flex-row items-center justify-between border-b pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                  {selectedMeal === 'lunch' && <Mountain size={20} className="text-green-600" />}
+                  {selectedMeal === 'breakfast' && <Sun size={20} className="text-green-600" />}
+                  {selectedMeal === 'dinner' && <Moon size={20} className="text-green-600" />}
+                  {selectedMeal === 'snack' && <Apple size={20} className="text-green-600" />}
+                </div>
+                <DialogTitle className="text-lg font-semibold">
+                  {selectedMeal === 'breakfast' && '아침'}
+                  {selectedMeal === 'lunch' && '점심'}
+                  {selectedMeal === 'dinner' && '저녁'}
+                  {selectedMeal === 'snack' && '간식'}
+                </DialogTitle>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setMealDialogOpen(false)} className="p-2">
+                <X size={20} />
               </Button>
-              <Button 
-                variant="outline"
-                className="px-4 py-3 border-muted text-muted-foreground hover:bg-muted/10"
-                onClick={() => handleSkipMeal(selectedMeal || '')}
-                disabled={!selectedMeal || (dayData && hasFoodItems(dayData.meals[selectedMeal.toUpperCase() as keyof typeof dayData.meals]?.items || []))}
-              >
-                안먹었어요
-              </Button>
+            </DialogHeader>
+
+            <div className="flex-1 py-6">
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                  <Utensils size={32} className="text-gray-400" />
+                </div>
+                <div className="text-gray-500 text-sm">음식 사진 추가</div>
+              </div>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
-      {/* 물 섭취량 다이얼로그 */}
-      <WaterIntakeDialog
-        open={waterDialogOpen}
-        onOpenChange={setWaterDialogOpen}
-        currentAmount={waterAmount}
-        onSave={handleWaterSave}
-      />
+            <div className="border-t pt-4 pb-6">
+              <div className="flex gap-2">
+                <Button
+                    className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-3"
+                    onClick={() => {
+                      setMealDialogOpen(false);
+                      if (selectedMeal) navigate(`/food-search?mealType=${selectedMeal}&d=${selectedDateStr}`);
+                    }}
+                    disabled={
+                        !selectedMeal ||
+                        (dayData && hasFoodItems(dayData.meals[selectedMeal.toUpperCase() as keyof typeof dayData.meals]?.items || []))
+                    }
+                >
+                  음식 등록
+                </Button>
 
-      {/* 캘린더 뷰 다이얼로그 */}
-      <CalendarViewDialog
-        open={calendarDialogOpen}
-        onOpenChange={setCalendarDialogOpen}
-      />
-    </div>
+                <Button
+                    variant="outline"
+                    className="px-4 py-3 border-muted text-muted-foreground hover:bg-muted/10"
+                    onClick={() => selectedMeal && handleSkipMeal(selectedMeal)}
+                    disabled={
+                        !selectedMeal ||
+                        (dayData && hasFoodItems(dayData.meals[selectedMeal.toUpperCase() as keyof typeof dayData.meals]?.items || []))
+                    }
+                >
+                  안먹었어요
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* 물/캘린더 다이얼로그 */}
+        <WaterIntakeDialog
+            open={waterDialogOpen}
+            onOpenChange={setWaterDialogOpen}
+            currentAmount={waterAmount}
+            selectedDate={selectedDateStr}
+            onSave={handleWaterSave}
+        />
+        <CalendarViewDialog
+            open={calendarDialogOpen}
+            onOpenChange={setCalendarDialogOpen}
+        />
+      </div>
   );
 };
 
