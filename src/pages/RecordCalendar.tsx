@@ -193,24 +193,35 @@ const RecordCalendar = () => {
                               )}
 
                               {/* 요약 */}
+                              {/* 요약 */}
                               <div className="mt-2 space-y-1 text-[11px] leading-4 text-gray-700">
-                                <div className="flex justify-between">
-                                  <span className="text-gray-500">🍔</span>
-                                  <span className="font-medium tabular-nums">
-                                  {dayData ? dayData.calories.toLocaleString() : '-'}kcal
-                            </span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-500">⚖️</span>
-                                  <span className="tabular-nums">{dayData?.weight != null ? `${dayData.weight}kg` : '- kg'}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-500">💧</span>
-                                  <span className="tabular-nums">
-                              {dayData?.water ? `${(dayData.water / 1000).toFixed(1)}L` : '- L'}
-                            </span>
-                                </div>
+                                {dayData?.calories ? (
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-500">🍔</span>
+                                      <span className="font-medium tabular-nums">
+                                        {dayData.calories.toLocaleString()}kcal
+                                      </span>
+                                    </div>
+                                ) : null}
+
+                                {dayData?.weight != null ? (
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-500">⚖️</span>
+                                      <span className="tabular-nums">{dayData.weight}kg</span>
+                                    </div>
+                                ) : null}
+
+                                {dayData?.water ? (
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-500">💧</span>
+                                      <span className="tabular-nums">
+                                        {(dayData.water / 1000).toFixed(1)}L
+                                      </span>
+                                    </div>
+                                ) : null}
                               </div>
+
+
                             </div>
                         );
                       },
@@ -225,7 +236,7 @@ const RecordCalendar = () => {
                       head_cell: 'text-muted-foreground font-medium text-xs w-full text-center py-2',
                       row: 'flex w-full flex-1',
                       cell: 'p-1 w-full h-full',
-                      day: 'w-full h-full p-0',
+                      day: 'w-full h-24 sm:h-28 md:h-32 p-0',
                       day_today: '',
                       day_selected: '',
                       day_outside: 'hidden', // 안전빵(혹시 prop이 무시되더라도 숨김)
