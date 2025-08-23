@@ -8,13 +8,14 @@ import {defaultFetch} from "@/api/defaultFetch.ts";
 import {Popover, PopoverContent, PopoverTrigger} from "@radix-ui/react-popover";
 import {AlertContainer} from "@/components/layout/AlertContainer.tsx";
 
-function useHasNotification() {
+const useHasNotification = (isLoggedIn : boolean, isAuthChecking : boolean) => {
   return useQuery({
     queryKey: ["hasNotification"],
     queryFn: async () => {
       const res = await defaultFetch("/api/notify/status");
       return res.hasNew;
     },
+    enabled : isLoggedIn && !isAuthChecking,   // 로그인 한 상태이면서, 권한 체크 끝나야 실행
     refetchInterval: 30_000,         // 30초마다 갱신
     refetchOnWindowFocus: true,      // 탭 복귀 시 갱신
     refetchOnReconnect: true,        // 네트워크 복구 시 갱신
@@ -27,7 +28,7 @@ const Navigation = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const qc = useQueryClient();
-  const { data: hasNotification = false } = useHasNotification();
+  const { data: hasNotification = false } = useHasNotification(isLoggedIn, isCheckingAuth);
   const [open, setOpen] = useState(false);
 
   const onBellClick = () => setOpen((v) => !v);
