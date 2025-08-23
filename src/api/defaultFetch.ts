@@ -3,12 +3,22 @@ import axios, { AxiosRequestConfig } from 'axios';
 /**
  * 백엔드 API 요청을 보낼 때 사용하는 기본 fetch 함수입니다.
  *
- * @param url 요청할 경로 (ex: "/api/chat")
+ * @template T 응답 JSON의 타입을 지정하기 위한 제네릭 파라미터
+ * @param url 요청할 경로 (예: "/api/chat")
  * @param options fetch 옵션 (headers, method 등)
- * @returns JSON 응답 객체
+ * @returns 지정한 타입 T의 JSON 응답 객체
  * @throws Error 요청 실패 시 예외 발생
+ *
+ * @example
+ * interface ChatResponse {
+ *   id: number;
+ *   message: string;
+ * }
+ *
+ * const data = await defaultFetch<ChatResponse>("/api/chat");
+ * console.log(data.message);
  */
-export const defaultFetch = async (url: string, options: RequestInit = {}) => {
+export const defaultFetch = async <T>(url: string, options: RequestInit = {}): Promise<T> => {
   console.log("[defaultFetch] : 패치 실행 (axios 기반)");
 
   const baseURL = "http://" + import.meta.env.VITE_BACKEND_ADDRESS;

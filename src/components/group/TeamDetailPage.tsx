@@ -11,6 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import ChatContainer from './ChatContainer';
+import {MemberResponse} from "@/pages/MyPage.tsx";
+import {defaultFetch} from "@/api/defaultFetch.ts";
 
 interface TeamDetail {
   id: string;
@@ -64,6 +66,7 @@ const TeamDetailPage = () => {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('notices');
+  const [memberData, setMemberData] = useState<MemberResponse | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   // 목업용 역할 설정 (실제 API 연동 시 서버에서 받아옴)
   const [currentUserRole] = useState<'member' | 'sub_leader' | 'leader'>('leader'); // 테스트용으로 leader로 설정
@@ -76,6 +79,17 @@ const TeamDetailPage = () => {
       setLoading(false);
     }, 800);
   }, [teamId]);
+
+  // 처음 들어올 때, 사용자 정보 불러오기
+  useEffect(() => {
+    const getMemberData = async () => {
+      const response = await defaultFetch<MemberResponse>('/api/member/me');
+
+      setMemberData(response);
+    }
+
+    getMemberData();
+  }, [])
 
   const handleLeaveGroup = async () => {
     try {
@@ -367,9 +381,8 @@ const TeamDetailPage = () => {
               </CardHeader>
               <CardContent className="flex-1 p-0">
                 <ChatContainer
-                  teamId={teamId}
-                  // 여기다 진짜 내 ID를 추가해줘야 함
-                  currentUserId="current"
+                  teamId = {teamId}
+                  currentUserId = {memberData.memberId}
                 />
               </CardContent>
             </Card>
