@@ -7,8 +7,8 @@ import {defaultFetch} from '@/api/defaultFetch.ts';
 import {StompSubscription} from "@stomp/stompjs";
 
 interface ChatMessage {
-  messageId: string;
-  senderId: string;
+  messageId: number;
+  senderId: number;
   sender: string;
   content: string;
   timestamp?: string;
@@ -16,7 +16,7 @@ interface ChatMessage {
 
 interface ChatContainerProps {
   teamId: string;
-  currentUserId: string;
+  currentUserId: number;
 }
 
 interface sendMessage {
@@ -141,7 +141,7 @@ const ChatContainer = ({ teamId, currentUserId }: ChatContainerProps) => {
     });
   };
 
-  const isMyMessage = (senderId: string) => senderId === currentUserId;
+  const isMyMessage = (senderId: number) => senderId === currentUserId;
 
   return (
     <div className="flex flex-col h-full max-h-[600px]">
