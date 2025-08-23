@@ -348,7 +348,7 @@ const FoodSearch = () => {
 
                   {/* Gram Input */}
                   <div className="space-y-3">
-                    <label className="text-sm font-medium text-foreground">수량 (g)</label>
+                    <label className="text-sm font-medium text-foreground">그람 (g)</label>
                     <div className="flex items-center gap-3">
                       <Button variant="outline" size="sm" onClick={() => adjustGrams(-10)} disabled={gramsAmount <= 10}>
                         <Minus size={16} />

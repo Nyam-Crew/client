@@ -111,7 +111,7 @@ const WhatIAteTab = ({
     setApiLoading(true);
     setApiError(null);
 
-    const reqUrl = `/api/meal/day?date=${encodeURIComponent(effectiveDate)}`;
+    const reqUrl = `/api/meal/day/log?date=${encodeURIComponent(effectiveDate)}`;
     try {
       const data = await defaultFetch(reqUrl, { method: "GET" });
       const res = data as MealDayResponse | undefined;
@@ -183,7 +183,7 @@ const WhatIAteTab = ({
     foods: Array.isArray(c.foods) ? c.foods : [],
   }));
   const waterToShow =
-      typeof (waterFromApi ?? waterAmount) === "number" ? (waterFromApi ?? waterAmount) : 0;
+      typeof waterAmount === "number" ? waterAmount : (waterFromApi ?? 0);
 
   /** “안먹었어요” 등록 → POST /api/meal/log 후 재조회 */
   const [skipPosting, setSkipPosting] = useState<string | null>(null);
@@ -234,8 +234,7 @@ const WhatIAteTab = ({
 
   /** 상세 이동 경로(일관화) */
   const goDetail = (mealId: string) => {
-    navigate(`/meal-detail/${mealId}`);
-    //navigate(`/record/meal/detail?type=${mealId}&date=${effectiveDate}`);
+    navigate(`/meal-detail/${mealId}?d=${effectiveDate}`);
   };
 
   return (

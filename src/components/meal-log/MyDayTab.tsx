@@ -1,7 +1,14 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { User, Activity, Zap, Flame, Droplets, Weight, CheckCircle } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+// 상단 import 목록에 추가
+import { HelpCircle } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface UserInfo {
   name: string;
@@ -15,33 +22,39 @@ interface TodayStats {
 }
 
 interface BMICategory {
-    text: string;
-    color: string;
+  text: string;
+  color: string;
 }
 
 interface MyDayTabProps {
   userInfo: UserInfo;
-  bmi: number;
+  /** 서버 값만 사용. 없으면 null */
+  bmi: number | null;
+  /** 범주는 외부에서 주입(없으면 빈 문자열 등으로 처리) */
   bmiCategory: BMICategory;
-  bmr: number;
-  tdee: number;
+  /** 서버 값만 사용. 없으면 null */
+  bmr: number | null;
+  /** 서버 값만 사용. 없으면 null */
+  tdee: number | null;
+  /** 칼로리/매크로는 상위에서 API 기반으로 구성(퍼센트만 계산 허용) */
   todayStats: TodayStats;
 }
 
 const MyDayTab = ({
-  userInfo,
-  bmi,
-  bmiCategory,
-  bmr,
-  tdee,
-  todayStats,
-}: MyDayTabProps) => {
-
+                    userInfo,
+                    bmi,
+                    bmiCategory,
+                    bmr,
+                    tdee,
+                    todayStats,
+                  }: MyDayTabProps) => {
+  // 도넛 차트 데이터: 상위에서 내려준 remaining 을 그대로 사용 (추가 계산 없음)
   const calorieData = [
     { name: '섭취', value: todayStats.calories.current },
     { name: '잔여', value: Math.max(0, todayStats.calories.remaining) },
   ];
 
+  // 퍼센트만 사용
   const nutrientData = [
     { name: '탄수화물', value: todayStats.carbs.percentage, color: '#FFC107' },
     { name: '단백질', value: todayStats.protein.percentage, color: '#F44336' },
@@ -50,107 +63,161 @@ const MyDayTab = ({
 
   const COLORS = ['#4CAF50', '#E0E0E0'];
 
-  return (
-    <div className="px-4 pt-6 pb-24 bg-gray-50/50" style={{ backgroundColor: '#fffff5' }}>
-      <div className="space-y-6">
-        {/* 인사말 */}
-        <div className="text-left">
-          <h1 className="text-2xl font-bold text-gray-800">안녕하세요, {userInfo.name}님!</h1>
-          <p className="text-gray-500">오늘도 건강한 하루를 만들고 계신가요? 💪</p>
-        </div>
+  const hasCalorieTarget = todayStats.calories.target > 0;
+  const showCalorieText = hasCalorieTarget && todayStats.calories.remaining !== 0;
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* 칼로리 현황 */}
-          <Card className="shadow-md border-0 bg-white overflow-hidden">
-            <CardContent className="p-6">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-                <div className="w-40 h-40 sm:w-48 sm:h-48 relative">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={calorieData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        startAngle={90}
-                        endAngle={450}
-                        paddingAngle={2}
-                        dataKey="value"
-                        stroke="none"
-                      >
-                        {calorieData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-3xl font-bold text-green-600">{todayStats.calories.current}</span>
-                    <span className="text-sm text-gray-500">/ {todayStats.calories.target} kcal</span>
+  const bmiText = bmi !== null ? bmi.toFixed(1) : '-';
+  const bmrText = bmr !== null ? Math.round(bmr) : '-';
+  const tdeeText = tdee !== null ? Math.round(tdee) : '-';
+
+  return (
+      <div className="px-4 pt-6 pb-24 bg-gray-50/50" style={{ backgroundColor: '#fffff5' }}>
+        <div className="space-y-6">
+          {/* 인사말 */}
+          <div className="text-left">
+            <h1 className="text-2xl font-bold text-gray-800">안녕하세요, {userInfo.name || '사용자'}님!</h1>
+            <p className="text-gray-500">오늘도 건강한 하루를 만들고 계신가요? 💪</p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 칼로리 현황 */}
+            <Card className="shadow-md border-0 bg-white overflow-hidden">
+              <CardContent className="p-6">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+                  <div className="w-40 h-40 sm:w-48 sm:h-48 relative">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                            data={calorieData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            startAngle={90}
+                            endAngle={450}
+                            paddingAngle={2}
+                            dataKey="value"
+                            stroke="none"
+                        >
+                          {calorieData.map((_, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-3xl font-bold text-green-600">{todayStats.calories.current}</span>
+                      <span className="text-sm text-gray-500">/ {hasCalorieTarget ? todayStats.calories.target : '-'} kcal</span>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 text-center sm:text-left">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-2">오늘의 칼로리</h3>
+                    {showCalorieText ? (
+                        todayStats.calories.remaining > 0 ? (
+                            <p className="text-gray-600">
+                              목표까지 <span className="font-bold text-green-600">{todayStats.calories.remaining}kcal</span> 남았어요. 잘하고 있어요!
+                            </p>
+                        ) : (
+                            <p className="text-gray-600">
+                              목표보다 <span className="font-bold text-red-500">{Math.abs(todayStats.calories.remaining)}kcal</span> 초과했어요.
+                            </p>
+                        )
+                    ) : (
+                        <p className="text-gray-400 text-sm">목표 칼로리 정보가 없어요.</p>
+                    )}
                   </div>
                 </div>
-                <div className="flex-1 text-center sm:text-left">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">오늘의 칼로리</h3>
-                  {todayStats.calories.remaining >= 0 ? (
-                    <p className="text-gray-600">
-                      목표까지 <span className="font-bold text-green-600">{todayStats.calories.remaining}kcal</span> 남았어요. 잘하고 있어요!
-                    </p>
-                  ) : (
-                    <p className="text-gray-600">
-                      목표보다 <span className="font-bold text-red-500">{Math.abs(todayStats.calories.remaining)}kcal</span> 초과했어요.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* 영양소 현황 */}
+            {/* 영양소 현황 (퍼센트만 표시) */}
+            <Card className="shadow-md border-0 bg-white">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <h3 className="text-lg font-semibold text-gray-800">영양소 분석</h3>
+
+                  <TooltipProvider delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                            aria-label="영양소 퍼센트 계산 방법"
+                            className="inline-flex items-center justify-center w-5 h-5 rounded-full hover:bg-gray-100 text-gray-500"
+                        >
+                          <HelpCircle size={16} />
+                        </button>
+                      </TooltipTrigger>
+
+                      <TooltipContent side="top" className="max-w-[280px] text-xs leading-relaxed">
+                        <p className="font-medium mb-1">퍼센트 계산 방법</p>
+                        <p>
+                          오늘 섭취한 총 칼로리(<b>{todayStats.calories.current}</b>kcal) 중
+                          각 영양소가 차지하는 비율입니다.
+                        </p>
+                        <ul className="list-disc pl-4 mt-1">
+                          <li>탄수화물: (탄수화물 g × 4) ÷ 총섭취kcal × 100</li>
+                          <li>단백질: (단백질 g × 4) ÷ 총섭취kcal × 100</li>
+                          <li>지방: (지방 g × 9) ÷ 총섭취kcal × 100</li>
+                        </ul>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          * 세 값은 합쳐서 100% 내외가 됩니다.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <div className="space-y-4">
+                  {nutrientData.map((nutrient) => (
+                      <div key={nutrient.name}>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-sm font-medium text-gray-700">{nutrient.name}</span>
+                          <span className="text-sm text-gray-500">{nutrient.value.toFixed(0)}%</span>
+                        </div>
+                        <Progress
+                            value={nutrient.value}
+                            className="h-2"
+                            style={{ backgroundColor: `${nutrient.color}33` }}
+                            // shadcn Progress는 indicator에 className 주입이 어려우니 inline style로 색상 처리
+                            // @ts-ignore: 내부 구현상 data-[state] 속성을 쓰므로 스타일 인라인 유지
+                            indicatorstyle={{ backgroundColor: nutrient.color }}
+                        />
+                      </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* 건강 정보 (서버값만 표시, 없으면 '-') */}
           <Card className="shadow-md border-0 bg-white">
             <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">영양소 분석</h3>
-              <div className="space-y-4">
-                {nutrientData.map((nutrient) => (
-                  <div key={nutrient.name}>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-sm font-medium text-gray-700">{nutrient.name}</span>
-                      <span className="text-sm text-gray-500">{nutrient.value.toFixed(0)}%</span>
-                    </div>
-                    <Progress value={nutrient.value} className="h-2" style={{ backgroundColor: nutrient.color + '33'}} indicatorClassName={`bg-[${nutrient.color}]`} />
-                  </div>
-                ))}
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">나의 건강 지표</h3>
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <div className="text-sm text-gray-500">BMI</div>
+                  <div className="text-xl font-bold text-gray-800">{bmiText}</div>
+                  {!!bmi && bmiCategory?.text ? (
+                      <div className={`text-xs font-medium ${bmiCategory.color}`}>{bmiCategory.text}</div>
+                  ) : (
+                      <div className="text-xs text-gray-400">-</div>
+                  )}
+                </div>
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <div className="text-sm text-gray-500">기초대사량</div>
+                  <div className="text-xl font-bold text-gray-800">{bmrText}</div>
+                  <div className="text-xs text-gray-500">kcal</div>
+                </div>
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <div className="text-sm text-gray-500">활동대사량</div>
+                  <div className="text-xl font-bold text-gray-800">{tdeeText}</div>
+                  <div className="text-xs text-gray-500">kcal</div>
+                </div>
               </div>
             </CardContent>
           </Card>
+
         </div>
-
-        {/* 건강 정보 */}
-        <Card className="shadow-md border-0 bg-white">
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">나의 건강 지표</h3>
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="text-sm text-gray-500">BMI</div>
-                <div className="text-xl font-bold text-gray-800">{bmi.toFixed(1)}</div>
-                <div className={`text-xs font-medium ${bmiCategory.color}`}>{bmiCategory.text}</div>
-              </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="text-sm text-gray-500">기초대사량</div>
-                <div className="text-xl font-bold text-gray-800">{Math.round(bmr)}</div>
-                <div className="text-xs text-gray-500">kcal</div>
-              </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="text-sm text-gray-500">활동대사량</div>
-                <div className="text-xl font-bold text-gray-800">{Math.round(tdee)}</div>
-                <div className="text-xs text-gray-500">kcal</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
       </div>
-    </div>
   );
 };
 

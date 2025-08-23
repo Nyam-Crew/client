@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -24,6 +23,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import MyDayTab from '@/components/meal-log/MyDayTab';
 import WhatIAteTab from '@/components/meal-log/WhatIAteTab';
 import DailyMissionsTab from '@/components/meal-log/DailyMissionsTab';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+
 
 interface DayMealData {
   date: string;
@@ -42,12 +43,43 @@ interface DayMealData {
   };
 }
 
+interface DayInsights {
+  memberId: number;
+  nickname: string | null;
+  age: number;
+  bmi: number | null;
+  bmr: number | null;
+  tdee: number | null;
+  recommendedCalories: number | null;
+  totalProtein: number;        // g
+  totalCarbohydrate: number;   // g
+  totalFat: number;            // g
+  totalWater: number;          // ml
+  totalKcal: number;           // kcal
+}
+
+const addDays = (d: Date, days: number) => {
+  const nd = new Date(d);
+  nd.setDate(nd.getDate() + days);
+  return nd;
+};
+const clampToMonth = (year: number, monthIndex0: number, day: number) => {
+  const last = new Date(year, monthIndex0 + 1, 0).getDate();
+  return Math.min(day, last);
+};
+
 const MealRecord = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // 탭/날짜/주 네비 상태
   const [activeTab, setActiveTab] = useState('myDay');
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedMonth, setSelectedMonth] = useState((new Date().getMonth() + 1).toString());
+  const [weekAnchor, setWeekAnchor] = useState(new Date()); // 주(7일) 뷰의 기준일
+  const [selectedMonth, setSelectedMonth] = useState(String(new Date().getMonth() + 1));
+  const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
+
+  // 기타 상태
   const [selectedMeal, setSelectedMeal] = useState<string | null>(null);
   const [mealDialogOpen, setMealDialogOpen] = useState(false);
   const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
@@ -59,58 +91,63 @@ const MealRecord = () => {
   const [loading, setLoading] = useState(true);
   const [dailyMissions, setDailyMissions] = useState<any[]>([]);
   const [missionsLoading, setMissionsLoading] = useState(false);
+  const [insights, setInsights] = useState<DayInsights | null>(null);
 
-  const userInfo = {
-    name: "김건강",
-    height: 170,
-    weight: 65.5,
-    age: 25,
-    gender: "male",
-    activityLevel: 1.375
-  };
+  // 날짜 문자열 (이 값이 바뀔 때만 insights API 호출)
+  const selectedDateStr = useMemo(
+      () => selectedDate.toISOString().split('T')[0],
+      [selectedDate]
+  );
 
-  const calculateBMI = (weight: number, height: number) => {
-    const heightInM = height / 100;
-    return weight / (heightInM * heightInM);
-  };
-
-  const selectedDateStr = selectedDate.toISOString().split('T')[0];
-
-  const calculateBMR = (weight: number, height: number, age: number, gender: string) => {
-    if (gender === "male") {
-      return 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
-    } else {
-      return 447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age);
-    }
-  };
-
-  const calculateTDEE = (bmr: number, activityLevel: number) => {
-    return bmr * activityLevel;
-  };
-
-  const bmi = calculateBMI(userInfo.weight, userInfo.height);
-  const bmr = calculateBMR(userInfo.weight, userInfo.height, userInfo.age, userInfo.gender);
-  const tdee = calculateTDEE(bmr, userInfo.activityLevel);
-
-  const getBMICategory = (bmi: number) => {
-    if (bmi < 18.5) return { text: "저체중", color: "text-blue-600" };
-    if (bmi < 23) return { text: "정상", color: "text-green-600" };
-    if (bmi < 25) return { text: "과체중", color: "text-yellow-600" };
-    return { text: "비만", color: "text-red-600" };
-  };
-
-  const bmiCategory = getBMICategory(bmi);
-
+  // 데이터 로딩 (식사/물/체중) — 예시 목업
   useEffect(() => {
     fetchDayData();
   }, [selectedDate]);
 
+  // 데일리 미션 탭 들어올 때만 호출
   useEffect(() => {
-    if (activeTab === 'dailyMissions') {
-      fetchDailyMissions();
-    }
+    if (activeTab === 'dailyMissions') fetchDailyMissions();
   }, [activeTab]);
 
+  // selectedDate 변경 시 주 앵커/연/월 동기화
+  useEffect(() => {
+    setWeekAnchor(selectedDate);
+    setSelectedYear(String(selectedDate.getFullYear()));
+    setSelectedMonth(String(selectedDate.getMonth() + 1));
+  }, [selectedDate]);
+
+  // 연/월 셀렉트 변경 시 selectedDate 이동 (일자는 가능한 유지, 말일 보정)
+  useEffect(() => {
+    const y = Number(selectedYear);
+    const mIdx = Number(selectedMonth) - 1;
+    const d = clampToMonth(y, mIdx, selectedDate.getDate());
+
+    // 값이 같으면 setState 하지 않음 (루프 방지)
+    if (
+        selectedDate.getFullYear() !== y ||
+        selectedDate.getMonth() !== mIdx ||
+        selectedDate.getDate() !== d
+    ) {
+      setSelectedDate(new Date(y, mIdx, d));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedYear, selectedMonth]);
+
+  // ✅ insights: 날짜 문자열이 바뀔 때만 호출
+  useEffect(() => {
+    const fetchInsights = async () => {
+      try {
+        const data = await defaultFetch(`/api/meal/day/insights?date=${selectedDateStr}`, { method: 'GET' });
+        setInsights(data as DayInsights);
+      } catch (e) {
+        console.error('failed to fetch insights', e);
+        setInsights(null);
+      }
+    };
+    fetchInsights();
+  }, [selectedDateStr]);
+
+  // 목업/예시 API
   const fetchDayData = async () => {
     setLoading(true);
     const dateStr = selectedDate.toISOString().split('T')[0];
@@ -118,9 +155,15 @@ const MealRecord = () => {
       date: dateStr,
       meals: {
         BREAKFAST: { totalKcal: 0, items: [] },
-        LUNCH: { totalKcal: 499, items: [{ id: '1', name: '당근라페 샌드위치', amount: '1인분 (283g)', kcal: 499 }] },
+        LUNCH: {
+          totalKcal: 499,
+          items: [{ id: '1', name: '당근라페 샌드위치', amount: '1인분 (283g)', kcal: 499 }]
+        },
         DINNER: { totalKcal: 0, items: [] },
-        SNACK: { totalKcal: 145, items: [{ id: '2', name: '아몬드', amount: '1줌 (28g)', kcal: 145 }] }
+        SNACK: {
+          totalKcal: 145,
+          items: [{ id: '2', name: '아몬드', amount: '1줌 (28g)', kcal: 145 }]
+        }
       },
       water: 1200,
       weight: 65.4,
@@ -128,21 +171,22 @@ const MealRecord = () => {
     };
     setDayData(mockData);
     setWaterAmount(mockData.water);
-    if (mockData.weight) {
-      setWeight(mockData.weight);
-    }
+    if (mockData.weight) setWeight(mockData.weight);
     setLoading(false);
   };
 
-  const handleMealClick = (mealId: string) => navigate(`/meal-detail/${mealId}`);
-  const handleAddFood = (mealType: string) => navigate(`/food-search?mealType=${mealType}`);
-  const handleWaterClick = () => setWaterDialogOpen(true);
+  // 라우팅 시 날짜 파라미터 항상 포함
+  const handleMealClick = (mealId: string) =>
+      navigate(`/meal-detail/${mealId}?d=${selectedDateStr}`);
+  const handleAddFood = (mealType: string) =>
+      navigate(`/food-search?mealType=${mealType}&d=${selectedDateStr}`);
 
+  // 물/체중 처리
+  const handleWaterClick = () => setWaterDialogOpen(true);
   const handleWaterSave = async (amount: number) => {
     setWaterAmount(amount);
     toast({ title: "저장 완료", description: "물 섭취량이 저장되었습니다." });
   };
-
   const handleWeightSave = async () => {
     if (!weight || weight <= 0) {
       toast({ title: "오류", description: "올바른 체중을 입력해주세요", variant: "destructive" });
@@ -153,6 +197,7 @@ const MealRecord = () => {
     setWeightLoading(false);
   };
 
+  // 데일리 미션
   const fetchDailyMissions = async () => {
     setMissionsLoading(true);
     try {
@@ -160,114 +205,193 @@ const MealRecord = () => {
       setDailyMissions(data);
     } catch (error) {
       console.error(error);
-      toast({ title: "오류", description: "데일리 미션을 불러오는데 실패했습니다.", variant: "destructive" });
+      toast({
+        title: "오류",
+        description: "데일리 미션을 불러오는데 실패했습니다.",
+        variant: "destructive"
+      });
     } finally {
       setMissionsLoading(false);
     }
   };
-
   const handleMissionComplete = async (dailyMissionId: number) => {
     try {
       await defaultFetch(`/api/missions/${dailyMissionId}/complete`, {
         method: 'POST',
-        body: { complete: true }, // 미션 완료 요청이므로 true를 보냅니다.
+        body: { complete: true }
       });
-
-      setDailyMissions(prev => prev.map(m => m.dailyMissionId === dailyMissionId ? { ...m, completed: true } : m));
+      setDailyMissions(prev =>
+          prev.map(m => (m.dailyMissionId === dailyMissionId ? { ...m, completed: true } : m))
+      );
       toast({ title: "완료", description: "미션이 완료되었습니다!" });
-
     } catch (error) {
       console.error(error);
       toast({ title: "오류", description: "미션 완료에 실패했습니다.", variant: "destructive" });
     }
   };
 
+  // 스킵/카드 클릭
   const handleSkipMeal = async (mealType: string) => {
     setMealDialogOpen(false);
     toast({ title: "등록 완료", description: "'안먹었어요'가 등록되었습니다." });
     await fetchDayData();
   };
-
   const handleMealCardClick = (mealId: string, status: string) => {
     if (status !== 'empty') handleMealClick(mealId);
   };
 
   const hasFoodItems = (foods: any[]) => foods && foods.length > 0;
 
-  const weekDays = ['일', '월', '화', '수', '목', '금', '토'];
-  const generateDateRange = () => {
-    const dates = [];
-    for (let i = -3; i <= 3; i++) {
-      const date = new Date();
-      date.setDate(date.getDate() + i);
-      dates.push(date);
-    }
-    return dates;
-  };
-  const dateRange = generateDateRange();
+  // 주 네비게이션 렌더링 데이터
+  const dateRange = (() => {
+    const arr: Date[] = [];
+    for (let i = -3; i <= 3; i++) arr.push(addDays(weekAnchor, i));
+    return arr;
+  })();
+  const goPrevWeek = () => setWeekAnchor(addDays(weekAnchor, -7));
+  const goNextWeek = () => setWeekAnchor(addDays(weekAnchor, +7));
 
-  const todayStats = dayData ? {
-    calories: { current: dayData.summaryTotalKcal, target: Math.round(tdee), remaining: Math.round(tdee - dayData.summaryTotalKcal) },
-    carbs: { percentage: 46, current: 78, target: 163 },
-    protein: { percentage: 14, current: 23, target: 51 },
-    fat: { percentage: 40, current: 30, target: 32 }
-  } : {
-    calories: { current: 0, target: Math.round(tdee), remaining: Math.round(tdee) },
-    carbs: { percentage: 0, current: 0, target: 163 },
-    protein: { percentage: 0, current: 0, target: 51 },
-    fat: { percentage: 0, current: 0, target: 32 }
+  // ---- insights 우선 사용, 퍼센트만 계산 ----
+  const consumedKcal = insights?.totalKcal ?? 0;
+  const targetKcal   = insights?.recommendedCalories ?? 0;
+
+  // 퍼센트(구성 비율)만 계산
+  const carbsPct =
+      consumedKcal > 0 && insights
+          ? (insights.totalCarbohydrate * 4 * 100) / consumedKcal
+          : 0;
+  const proteinPct =
+      consumedKcal > 0 && insights
+          ? (insights.totalProtein * 4 * 100) / consumedKcal
+          : 0;
+  const fatPct =
+      consumedKcal > 0 && insights
+          ? (insights.totalFat * 9 * 100) / consumedKcal
+          : 0;
+
+  const todayStats = {
+    calories: {
+      current: consumedKcal,
+      target: targetKcal,
+      // 퍼센트 외 계산 금지 요건에 맞춰 remaining 은 0(표시 로직은 MyDayTab에서 분기)
+      remaining: 0,
+    },
+    carbs:   { percentage: Math.max(0, Math.min(100, carbsPct)),   current: insights?.totalCarbohydrate ?? 0, target: 0 },
+    protein: { percentage: Math.max(0, Math.min(100, proteinPct)), current: insights?.totalProtein ?? 0,      target: 0 },
+    fat:     { percentage: Math.max(0, Math.min(100, fatPct)),     current: insights?.totalFat ?? 0,          target: 0 },
   };
 
-  const mealCards = dayData ? [
-    { id: 'breakfast', name: '아침', icon: Sun, totalKcal: dayData.meals.BREAKFAST.totalKcal, foods: dayData.meals.BREAKFAST.items || [] },
-    { id: 'lunch', name: '점심', icon: Mountain, totalKcal: dayData.meals.LUNCH.totalKcal, foods: dayData.meals.LUNCH.items || [] },
-    { id: 'dinner', name: '저녁', icon: Moon, totalKcal: dayData.meals.DINNER.totalKcal, foods: dayData.meals.DINNER.items || [] },
-    { id: 'snack', name: '간식', icon: Apple, totalKcal: dayData.meals.SNACK.totalKcal, foods: dayData.meals.SNACK.items || [] }
-  ] : [];
+  const mealCards = dayData
+      ? [
+        { id: 'breakfast', name: '아침', icon: Sun, totalKcal: dayData.meals.BREAKFAST.totalKcal, foods: dayData.meals.BREAKFAST.items || [] },
+        { id: 'lunch', name: '점심', icon: Mountain, totalKcal: dayData.meals.LUNCH.totalKcal, foods: dayData.meals.LUNCH.items || [] },
+        { id: 'dinner', name: '저녁', icon: Moon, totalKcal: dayData.meals.DINNER.totalKcal, foods: dayData.meals.DINNER.items || [] },
+        { id: 'snack', name: '간식', icon: Apple, totalKcal: dayData.meals.SNACK.totalKcal, foods: dayData.meals.SNACK.items || [] }
+      ]
+      : [];
 
   return (
       <div className="min-h-screen bg-gray-50" style={{ backgroundColor: '#fffff5' }}>
+        {/* 상단 바 */}
         <div className="bg-white px-4 py-3 border-b">
+          {/* 연/월 셀렉트 + 캘린더 버튼 */}
           <div className="flex items-center justify-between mb-3">
-            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 12 }, (_, i) => (
-                    <SelectItem key={i + 1} value={(i + 1).toString()}>{i + 1}월</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/record/calendar')} className="p-2">
+            <div className="flex items-center gap-2">
+              {/* 연도 */}
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 11 }, (_, i) => {
+                    const year = new Date().getFullYear() - 5 + i; // 현재-5 ~ 현재+5
+                    return (
+                        <SelectItem key={year} value={String(year)}>
+                          {year}년
+                        </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+
+              {/* 월 */}
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 12 }, (_, i) => (
+                      <SelectItem key={i + 1} value={String(i + 1)}>
+                        {i + 1}월
+                      </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* 오늘 버튼 */}
+              <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const today = new Date();
+                    setSelectedDate(today);
+                    setWeekAnchor(today);
+                  }}
+              >
+                오늘
+              </Button>
+            </div>
+
+            <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/record/calendar')}
+                className="p-2"
+            >
               <Calendar size={24} className="text-gray-600" />
             </Button>
           </div>
+
+          {/* 주 단위 네비게이션 */}
           <div className="flex items-center justify-between">
-            <ChevronLeft size={24} className="text-gray-600" />
+            <button onClick={goPrevWeek} className="p-2 hover:opacity-80">
+              <ChevronLeft size={24} className="text-gray-600" />
+            </button>
+
             <div className="flex gap-1 overflow-x-auto">
-              {dateRange.map((date, index) => {
+              {dateRange.map((date, idx) => {
                 const isToday = date.toDateString() === new Date().toDateString();
                 const isSelected = date.toDateString() === selectedDate.toDateString();
                 const isDisabled = activeTab === 'dailyMissions' && !isToday;
                 return (
                     <button
-                        key={index}
+                        key={idx}
                         onClick={() => !isDisabled && setSelectedDate(date)}
                         disabled={isDisabled}
                         className={`flex flex-col items-center px-3 py-2 rounded-lg min-w-[50px] ${
-                            isDisabled ? 'text-gray-300 cursor-not-allowed' : isSelected ? 'bg-gray-800 text-white' : isToday ? 'bg-gray-200 text-gray-800' : 'text-gray-600'
-                        }`}>
-                      <span className="text-xs">{weekDays[date.getDay()]}</span>
+                            isDisabled
+                                ? 'text-gray-300 cursor-not-allowed'
+                                : isSelected
+                                    ? 'bg-gray-800 text-white'
+                                    : isToday
+                                        ? 'bg-gray-200 text-gray-800'
+                                        : 'text-gray-600'
+                        }`}
+                    >
+                      <span className="text-xs">{['일','월','화','수','목','금','토'][date.getDay()]}</span>
                       <span className="text-sm font-semibold">{date.getDate()}</span>
                     </button>
                 );
               })}
             </div>
-            <ChevronRight size={24} className="text-gray-600" />
+
+            <button onClick={goNextWeek} className="p-2 hover:opacity-80">
+              <ChevronRight size={24} className="text-gray-600" />
+            </button>
           </div>
         </div>
 
+        {/* 탭 */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="myDay" className="flex items-center gap-2">
@@ -285,16 +409,48 @@ const MealRecord = () => {
           </TabsList>
 
           <TabsContent value="myDay">
-            <MyDayTab userInfo={userInfo} bmi={bmi} bmiCategory={bmiCategory} bmr={bmr} tdee={tdee} todayStats={todayStats} />
+            <MyDayTab
+                userInfo={{ name: insights?.nickname ?? '사용자' }}
+                bmi={insights?.bmi ?? null}
+                // BMI 범주 계산은 하지 않고, 중립값 전달(필요시 MyDayTab에서 처리)
+                bmiCategory={{ text: '', color: 'text-gray-400' }}
+                bmr={insights?.bmr ?? null}
+                tdee={insights?.tdee ?? null}
+                todayStats={todayStats}
+            />
           </TabsContent>
+
           <TabsContent value="whatIAte">
-            <WhatIAteTab dateKey={selectedDate.toISOString().split('T')[0]} weight={weight} setWeight={setWeight} handleWeightSave={handleWeightSave} weightLoading={weightLoading} loading={loading} mealCards={mealCards} handleMealCardClick={handleMealCardClick} handleAddFood={handleAddFood} handleSkipMeal={handleSkipMeal} waterAmount={waterAmount} handleWaterClick={handleWaterClick} onWaterAmountFetched={setWaterAmount} />
+            <WhatIAteTab
+                dateKey={selectedDateStr}
+                weight={weight}
+                setWeight={setWeight}
+                handleWeightSave={handleWeightSave}
+                weightLoading={weightLoading}
+                loading={loading}
+                mealCards={mealCards}
+                handleMealCardClick={handleMealCardClick}
+                handleAddFood={handleAddFood}
+                handleSkipMeal={handleSkipMeal}
+                waterAmount={waterAmount}
+                handleWaterClick={(date, current) => {
+                  setWaterAmount(current);        // 다이얼로그 초기 표시값
+                  setWaterDialogOpen(true);       // 열기
+                }}
+                onWaterAmountFetched={setWaterAmount}
+            />
           </TabsContent>
+
           <TabsContent value="dailyMissions">
-            <DailyMissionsTab dailyMissions={dailyMissions} missionsLoading={missionsLoading} handleMissionComplete={handleMissionComplete} />
+            <DailyMissionsTab
+                dailyMissions={dailyMissions}
+                missionsLoading={missionsLoading}
+                handleMissionComplete={handleMissionComplete}
+            />
           </TabsContent>
         </Tabs>
 
+        {/* 식사 등록 다이얼로그 */}
         <Dialog open={mealDialogOpen} onOpenChange={setMealDialogOpen}>
           <DialogContent className="w-[90%] max-w-md h-[80vh] flex flex-col">
             <DialogHeader className="flex flex-row items-center justify-between border-b pb-4">
@@ -316,6 +472,7 @@ const MealRecord = () => {
                 <X size={20} />
               </Button>
             </DialogHeader>
+
             <div className="flex-1 py-6">
               <div className="flex flex-col items-center justify-center h-full text-center">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -324,12 +481,32 @@ const MealRecord = () => {
                 <div className="text-gray-500 text-sm">음식 사진 추가</div>
               </div>
             </div>
+
             <div className="border-t pt-4 pb-6">
               <div className="flex gap-2">
-                <Button className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-3" onClick={() => { setMealDialogOpen(false); handleAddFood(selectedMeal || ''); }} disabled={!selectedMeal || (dayData && hasFoodItems(dayData.meals[selectedMeal.toUpperCase() as keyof typeof dayData.meals]?.items || []))}>
+                <Button
+                    className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-3"
+                    onClick={() => {
+                      setMealDialogOpen(false);
+                      if (selectedMeal) navigate(`/food-search?mealType=${selectedMeal}&d=${selectedDateStr}`);
+                    }}
+                    disabled={
+                        !selectedMeal ||
+                        (dayData && hasFoodItems(dayData.meals[selectedMeal.toUpperCase() as keyof typeof dayData.meals]?.items || []))
+                    }
+                >
                   음식 등록
                 </Button>
-                <Button variant="outline" className="px-4 py-3 border-muted text-muted-foreground hover:bg-muted/10" onClick={() => handleSkipMeal(selectedMeal || '')} disabled={!selectedMeal || (dayData && hasFoodItems(dayData.meals[selectedMeal.toUpperCase() as keyof typeof dayData.meals]?.items || []))}>
+
+                <Button
+                    variant="outline"
+                    className="px-4 py-3 border-muted text-muted-foreground hover:bg-muted/10"
+                    onClick={() => selectedMeal && handleSkipMeal(selectedMeal)}
+                    disabled={
+                        !selectedMeal ||
+                        (dayData && hasFoodItems(dayData.meals[selectedMeal.toUpperCase() as keyof typeof dayData.meals]?.items || []))
+                    }
+                >
                   안먹었어요
                 </Button>
               </div>
@@ -337,8 +514,18 @@ const MealRecord = () => {
           </DialogContent>
         </Dialog>
 
-        <WaterIntakeDialog open={waterDialogOpen} onOpenChange={setWaterDialogOpen} currentAmount={waterAmount} selectedDate={selectedDateStr} onSave={handleWaterSave} />
-        <CalendarViewDialog open={calendarDialogOpen} onOpenChange={setCalendarDialogOpen} />
+        {/* 물/캘린더 다이얼로그 */}
+        <WaterIntakeDialog
+            open={waterDialogOpen}
+            onOpenChange={setWaterDialogOpen}
+            currentAmount={waterAmount}
+            selectedDate={selectedDateStr}
+            onSave={handleWaterSave}
+        />
+        <CalendarViewDialog
+            open={calendarDialogOpen}
+            onOpenChange={setCalendarDialogOpen}
+        />
       </div>
   );
 };

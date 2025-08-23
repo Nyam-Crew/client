@@ -50,14 +50,15 @@ const EditFoodDialog = ({ open, onOpenChange, food, onSave }: EditFoodDialogProp
   }, [food]);
 
   if (!food) return null;
-
+  const round1 = (n: number) => Math.round(n * 10) / 10;
+  const fmt1 = (n: number) => round1(n).toFixed(1); // 항상 한 자리 표시
   const kcalPerGram = food.intakeAmount > 0 ? food.intakeKcal / food.intakeAmount : 0;
-  const calculateKcal = () => Math.round(kcalPerGram * gramsAmount);
+  const calculateKcal = () => round1(kcalPerGram * gramsAmount);
 
   // UI 미리보기(임시 계산)
-  const carbs = Math.round(calculateKcal() * 0.5 / 4 * 10) / 10;
-  const protein = Math.round(calculateKcal() * 0.2 / 4 * 10) / 10;
-  const fat = Math.round(calculateKcal() * 0.3 / 9 * 10) / 10;
+  const carbs = round1(calculateKcal() * 0.5 / 4 * 10) / 10;
+  const protein = round1(calculateKcal() * 0.2 / 4 * 10) / 10;
+  const fat = round1(calculateKcal() * 0.3 / 9 * 10) / 10;
 
   const adjustGrams = (inc: number) => setGramsAmount(prev => Math.max(1, Math.min(2000, prev + inc)));
 
@@ -87,22 +88,22 @@ const EditFoodDialog = ({ open, onOpenChange, food, onSave }: EditFoodDialogProp
               <div className="grid grid-cols-3 gap-3 text-xs">
                 <div className="bg-red-50 dark:bg-red-950/20 p-2 rounded">
                   <div className="text-red-600 dark:text-red-400 font-medium">탄수화물</div>
-                  <div className="text-foreground">{Math.round(kcalPerGram * 100 * 0.5 / 4)}g</div>
+                  <div className="text-foreground">{fmt1(kcalPerGram * 100 * 0.5 / 4)}g</div>
                 </div>
                 <div className="bg-yellow-50 dark:bg-yellow-950/20 p-2 rounded">
                   <div className="text-yellow-600 dark:text-yellow-400 font-medium">단백질</div>
-                  <div className="text-foreground">{Math.round(kcalPerGram * 100 * 0.2 / 4)}g</div>
+                  <div className="text-foreground">{fmt1(kcalPerGram * 100 * 0.2 / 4)}g</div>
                 </div>
                 <div className="bg-blue-50 dark:bg-blue-950/20 p-2 rounded">
                   <div className="text-blue-600 dark:text-blue-400 font-medium">지방</div>
-                  <div className="text-foreground">{Math.round(kcalPerGram * 100 * 0.3 / 9)}g</div>
+                  <div className="text-foreground">{fmt1(kcalPerGram * 100 * 0.3 / 9)}g</div>
                 </div>
               </div>
             </div>
 
             {/* g 입력 */}
             <div className="space-y-3">
-              <label className="text-sm font-medium text-foreground">수량 (g)</label>
+              <label className="text-sm font-medium text-foreground">그람 (g)</label>
               <div className="flex items-center gap-3">
                 <Button variant="outline" size="sm" onClick={() => adjustGrams(-10)} disabled={gramsAmount <= 10}>
                   <Minus size={16} />
@@ -139,15 +140,15 @@ const EditFoodDialog = ({ open, onOpenChange, food, onSave }: EditFoodDialogProp
               <div className="grid grid-cols-3 gap-3 text-xs text-center">
                 <div className="bg-red-50 dark:bg-red-950/20 p-2 rounded">
                   <div className="text-red-600 dark:text-red-400 font-medium">탄수화물</div>
-                  <div className="text-foreground font-bold">{carbs}g</div>
+                  <div className="text-foreground font-bold">{fmt1(carbs)}g</div>
                 </div>
                 <div className="bg-yellow-50 dark:bg-yellow-950/20 p-2 rounded">
                   <div className="text-yellow-600 dark:text-yellow-400 font-medium">단백질</div>
-                  <div className="text-foreground font-bold">{protein}g</div>
+                  <div className="text-foreground font-bold">{fmt1(protein)}g</div>
                 </div>
                 <div className="bg-blue-50 dark:bg-blue-950/20 p-2 rounded">
                   <div className="text-blue-600 dark:text-blue-400 font-medium">지방</div>
-                  <div className="text-foreground font-bold">{fat}g</div>
+                  <div className="text-foreground font-bold">{fmt1(fat)}g</div>
                 </div>
               </div>
             </div>
@@ -185,6 +186,16 @@ const MealDetail = () => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   }, [searchParams]);
+
+  const handleBack = () => {
+    // SPA 히스토리가 있는 경우엔 진짜 "앞 화면"으로
+    if (window.history.length > 1) {
+      navigate(-2);
+    } else {
+      // 직접 진입 등 히스토리가 없으면 먹었어요 탭으로 안전 복귀
+      navigate(`/record?tab=whatIAte&d=${selectedDate}`);
+    }
+  };
 
   const apiMealType = toApiMealType(mealType);
   const uiMealType = toUiMealType(mealType);
@@ -277,7 +288,7 @@ const MealDetail = () => {
   };
 
   const handleComplete = () => {
-    navigate(`/meal-record?tab=myDay&d=${selectedDate}`);
+    navigate(`/meal-record?tab=whatIAte&d=${selectedDate}`);
   };
 
   // 대략적 영양소 퍼센트 (UI 미리보기용)
@@ -330,22 +341,13 @@ const MealDetail = () => {
   return (
       <div className="min-h-screen bg-background">
         {/* Header */}
+        {/* Header */}
         <div className="bg-background border-b px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate(`/meal-record?tab=myDay&d=${selectedDate}`)}
-                className="p-2"
-            >
-              <ArrowLeft size={20} />
-            </Button>
-            <div className="flex items-center gap-2">
-              <div className="text-primary">{getMealIcon(uiMealType)}</div>
-              <h1 className="text-lg font-semibold text-foreground">
-                {getMealTypeLabel(uiMealType)}
-              </h1>
-            </div>
+          <div className="flex items-center gap-2">
+            <div className="text-primary">{getMealIcon(uiMealType)}</div>
+            <h1 className="text-lg font-semibold text-foreground">
+              {getMealTypeLabel(uiMealType)}
+            </h1>
           </div>
         </div>
 
