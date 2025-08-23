@@ -3,7 +3,6 @@ import {Link, useLocation} from 'react-router-dom';
 import {Bell, BookOpen, Home, User, UserPlus, Users} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {activateStompClient, subscribeNotification} from "@/lib/websocket.ts";
-import {defaultFetch} from '@/api/defaultFetch';
 import {useQuery, useQueryClient} from "@tanstack/react-query";
 import {defaultFetch} from "@/api/defaultFetch.ts";
 import {Popover, PopoverContent, PopoverTrigger} from "@radix-ui/react-popover";
@@ -25,7 +24,6 @@ function useHasNotification() {
 
 const Navigation = () => {
   const location = useLocation();
-  const [hasNotification, setHasNotification] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const qc = useQueryClient();
@@ -83,13 +81,6 @@ const Navigation = () => {
       activateAndSubscribe();
     }
   }, [isLoggedIn, isCheckingAuth]);
-    // Navigation 렌더링 시에 Websocket 연결 요청
-    const activateAndSubscribe = async () => {
-      await activateStompClient();
-      await subscribeNotification();
-    }
-    activateAndSubscribe();
-  }, []);
 
   return (
       <nav className="bg-card border-b border-border sticky top-0 z-50 backdrop-blur-sm bg-card/95">
@@ -123,15 +114,6 @@ const Navigation = () => {
               </div>
             )}
 
-            {/* 알림 버튼 - 로그인된 사용자만 표시 */}
-            {isLoggedIn && (
-              <Button variant="ghost" size="sm" className="relative">
-                <Bell size={20}/>
-                {hasNotification && (
-                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full"/>
-                )}
-              </Button>
-            )}
             {/* 알림 버튼 */}
             <Popover
                 open={open}
