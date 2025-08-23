@@ -125,7 +125,7 @@ const MyGroupsTab = () => {
   };
 
   const handleGroupClick = (groupId: string) => {
-    navigate(`/api/teams/${groupId}`);
+    navigate(`/teams/${groupId}`);
   };
 
   if (loading) {
