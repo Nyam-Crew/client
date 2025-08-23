@@ -47,7 +47,7 @@ import { useToast } from '@/hooks/use-toast';
 import { defaultFetch } from '@/api/defaultFetch';
 
 // TypeScript interfaces for API responses
-interface MemberResponse {
+export interface MemberResponse {
   memberId: number;
   nickname: string;
   email: string;
