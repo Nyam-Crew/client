@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { ArrowLeft, Settings, Users, Crown, Shield, Bell, MessageSquare, Trophy, FileText, Edit, Trash2, UserPlus, UserMinus, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Settings, Users, Crown, Shield, Bell, MessageSquare, Trophy, FileText, Edit, Trash2, UserPlus, UserMinus, ChevronDown, Droplets, Utensils, Weight, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import ChatContainer from './ChatContainer';
 
 interface TeamDetail {
@@ -34,6 +35,16 @@ interface Notice {
   pinned: boolean;
 }
 
+interface TeamActivityFeedItem {
+  feedId: string;
+  memberId: number;
+  nickname: string;
+  profileImageUrl: string;
+  activityType: 'WATER' | 'MEAL' | 'WEIGHT' | 'CHALLENGE';
+  activityMessage: string;
+  feedCreatedDate: string; // new Date().toISOString() 형식
+}
+
 const mockTeam: TeamDetail = {
   id: '1',
   name: '매일 운동하기',
@@ -55,6 +66,75 @@ const mockNotice: Notice | null = {
   createdAt: '2024-01-20',
   pinned: true
 };
+
+// 목업 피드 데이터
+const mockFeedData: TeamActivityFeedItem[] = [
+  {
+    feedId: '1',
+    memberId: 1,
+    nickname: '김운동',
+    profileImageUrl: '/api/placeholder/40/40',
+    activityType: 'WATER',
+    activityMessage: '물 800ml를 마셨어요! 💧',
+    feedCreatedDate: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    feedId: '2',
+    memberId: 2, // 현재 사용자
+    nickname: '나',
+    profileImageUrl: '/api/placeholder/40/40',
+    activityType: 'MEAL',
+    activityMessage: '점심식사를 기록했어요! 🍽️ 닭가슴살 샐러드 - 320kcal',
+    feedCreatedDate: new Date(Date.now() - 1.5 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    feedId: '3',
+    memberId: 3,
+    nickname: '박헬스',
+    profileImageUrl: '/api/placeholder/40/40',
+    activityType: 'WEIGHT',
+    activityMessage: '체중을 기록했어요! 📊 72.5kg (-0.3kg)',
+    feedCreatedDate: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    feedId: '4',
+    memberId: 4,
+    nickname: '이건강',
+    profileImageUrl: '/api/placeholder/40/40',
+    activityType: 'CHALLENGE',
+    activityMessage: '오늘의 운동 목표를 달성했어요! 🎯 30분 러닝 완료',
+    feedCreatedDate: new Date(Date.now() - 45 * 60 * 1000).toISOString()
+  },
+  {
+    feedId: '5',
+    memberId: 2, // 현재 사용자
+    nickname: '나',
+    profileImageUrl: '/api/placeholder/40/40',
+    activityType: 'WATER',
+    activityMessage: '물 500ml 추가! 💦 오늘 목표까지 200ml 남았어요',
+    feedCreatedDate: new Date(Date.now() - 30 * 60 * 1000).toISOString()
+  },
+  {
+    feedId: '6',
+    memberId: 5,
+    nickname: '최다이어트',
+    profileImageUrl: '/api/placeholder/40/40',
+    activityType: 'MEAL',
+    activityMessage: '저녁식사 기록! 🌙 연어구이와 현미밥 - 450kcal',
+    feedCreatedDate: new Date(Date.now() - 15 * 60 * 1000).toISOString()
+  },
+  {
+    feedId: '7',
+    memberId: 6,
+    nickname: '정운동맨',
+    profileImageUrl: '/api/placeholder/40/40',
+    activityType: 'CHALLENGE',
+    activityMessage: '주간 운동 목표 3회 달성! 🏆 이번 주도 화이팅!',
+    feedCreatedDate: new Date(Date.now() - 5 * 60 * 1000).toISOString()
+  }
+];
+
+const currentUserId = 2; // 현재 사용자 ID
 
 const TeamDetailPage = () => {
   const { teamId } = useParams();
@@ -341,17 +421,88 @@ const TeamDetailPage = () => {
           </TabsContent>
 
           <TabsContent value="feed">
-            <Card>
-              <CardHeader>
+            <Card className="h-[600px] flex flex-col">
+              <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2">
                   <Bell className="h-5 w-5" />
                   실시간 피드
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-center py-8">
-                  <Bell className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-                  <p className="text-muted-foreground">실시간 피드 기능은 준비 중입니다</p>
+              <CardContent className="flex-1 overflow-y-auto">
+                <div className="space-y-4 pb-4">
+                  {mockFeedData.map((feedItem) => {
+                    const isMyFeed = feedItem.memberId === currentUserId;
+                    const feedTime = new Date(feedItem.feedCreatedDate);
+                    const timeStr = feedTime.toLocaleTimeString('ko-KR', { 
+                      hour: '2-digit', 
+                      minute: '2-digit',
+                      hour12: false 
+                    });
+                    
+                    const getActivityIcon = (type: string) => {
+                      switch (type) {
+                        case 'WATER': return <Droplets className="w-4 h-4" />;
+                        case 'MEAL': return <Utensils className="w-4 h-4" />;
+                        case 'WEIGHT': return <Weight className="w-4 h-4" />;
+                        case 'CHALLENGE': return <Target className="w-4 h-4" />;
+                        default: return <Bell className="w-4 h-4" />;
+                      }
+                    };
+
+                    return (
+                      <div
+                        key={feedItem.feedId}
+                        className={`flex w-full ${isMyFeed ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div className={`flex max-w-[80%] ${isMyFeed ? 'flex-row-reverse' : 'flex-row'} gap-2`}>
+                          {/* 프로필 이미지 (내 피드가 아닐 때만 표시) */}
+                          {!isMyFeed && (
+                            <Avatar className="w-8 h-8 mt-1">
+                              <AvatarImage src={feedItem.profileImageUrl} alt={feedItem.nickname} />
+                              <AvatarFallback className="text-xs bg-muted">
+                                {feedItem.nickname.slice(0, 2)}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                          
+                          {/* 메시지 영역 */}
+                          <div className={`flex flex-col ${isMyFeed ? 'items-end' : 'items-start'}`}>
+                            {/* 닉네임 (내 피드가 아닐 때만 표시) */}
+                            {!isMyFeed && (
+                              <div className="text-xs text-muted-foreground mb-1 px-1">
+                                {feedItem.nickname}
+                              </div>
+                            )}
+                            
+                            {/* 말풍선 */}
+                            <div
+                              className={`relative px-3 py-2 rounded-2xl shadow-sm ${
+                                isMyFeed 
+                                  ? 'bg-[#c2d595] text-[#2d3d0f] rounded-br-md' 
+                                  : 'bg-[#ffffe1] text-foreground rounded-bl-md border border-border/50'
+                              }`}
+                            >
+                              <div className="flex items-start gap-2">
+                                <div className="flex-shrink-0 mt-0.5">
+                                  {getActivityIcon(feedItem.activityType)}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-sm leading-relaxed break-words">
+                                    {feedItem.activityMessage}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* 시간 */}
+                            <div className={`text-xs text-muted-foreground mt-1 px-1 ${isMyFeed ? 'text-right' : 'text-left'}`}>
+                              {timeStr}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
