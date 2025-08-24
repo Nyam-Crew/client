@@ -4,6 +4,7 @@ import { Users, Crown, Shield, Calendar, Clock, X } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface MyGroup {
   id: string;
@@ -30,6 +31,11 @@ interface AppliedGroup {
   status: 'pending' | 'rejected';
   appliedAt: string;
 }
+
+// Unified type for both joined and applied groups
+type GroupItem = (MyGroup & { type: 'joined' }) | (AppliedGroup & { type: 'applied' });
+
+type ActiveTab = 'joined' | 'applied';
 
 const mockMyGroups: MyGroup[] = [
   {
@@ -82,18 +88,52 @@ const mockAppliedGroups: AppliedGroup[] = [
 
 const MyGroupsTab = () => {
   const navigate = useNavigate();
-  const [myGroups, setMyGroups] = useState<MyGroup[]>([]);
-  const [appliedGroups, setAppliedGroups] = useState<AppliedGroup[]>([]);
+  const [groups, setGroups] = useState<GroupItem[]>([]);
+  const [activeTab, setActiveTab] = useState<ActiveTab>('joined');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 목업 데이터 로딩 시뮬레이션
+    // 목업 데이터 로딩 시뮬레이션 - activeTab에 따라 다른 API 호출
+    setLoading(true);
+    
     setTimeout(() => {
-      setMyGroups(mockMyGroups);
-      setAppliedGroups(mockAppliedGroups);
+      if (activeTab === 'joined') {
+        // API call: GET /api/teams/my/joined
+        const joinedGroups: GroupItem[] = mockMyGroups.map(group => ({ ...group, type: 'joined' as const }));
+        setGroups(joinedGroups);
+      } else if (activeTab === 'applied') {
+        // API call: GET /api/teams/my/applied
+        const appliedGroups: GroupItem[] = mockAppliedGroups.map(group => ({ ...group, type: 'applied' as const }));
+        setGroups(appliedGroups);
+      }
       setLoading(false);
     }, 800);
-  }, []);
+  }, [activeTab]);
+
+  const getBadge = (group: GroupItem) => {
+    if (group.type === 'joined') {
+      return getRoleBadge((group as MyGroup).role);
+    } else {
+      return getStatusBadge((group as AppliedGroup).status);
+    }
+  };
+
+  const getDateInfo = (group: GroupItem) => {
+    if (group.type === 'joined') {
+      const joinedGroup = group as MyGroup;
+      return {
+        label: '참가일',
+        date: joinedGroup.joinedAt,
+        lastActivity: joinedGroup.lastActivity
+      };
+    } else {
+      const appliedGroup = group as AppliedGroup;
+      return {
+        label: '신청일',
+        date: appliedGroup.appliedAt
+      };
+    }
+  };
 
   const getRoleBadge = (role: MyGroup['role']) => {
     switch (role) {
@@ -151,30 +191,37 @@ const MyGroupsTab = () => {
     );
   }
 
-  if (myGroups.length === 0 && appliedGroups.length === 0) {
+  if (groups.length === 0 && !loading) {
     return (
       <div className="text-center py-12">
         <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-        <p className="text-lg font-medium text-muted-foreground">참가 중인 그룹이 없습니다</p>
+        <p className="text-lg font-medium text-muted-foreground">
+          {activeTab === 'joined' ? '참가 중인 그룹이 없습니다' : '신청한 그룹이 없습니다'}
+        </p>
         <p className="text-sm text-muted-foreground mt-1">그룹찾기에서 관심있는 그룹에 참가해보세요</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      {/* 가입된 그룹 섹션 */}
-      {myGroups.length > 0 && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold">가입된 그룹</h2>
-              <p className="text-sm text-muted-foreground">총 {myGroups.length}개 그룹에 참가 중</p>
-            </div>
+    <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as ActiveTab)} className="w-full">
+      <TabsList className="grid w-full grid-cols-2">
+        <TabsTrigger value="joined">가입된 그룹</TabsTrigger>
+        <TabsTrigger value="applied">신청한 그룹</TabsTrigger>
+      </TabsList>
+      
+      <TabsContent value="joined" className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold">가입된 그룹</h2>
+            <p className="text-sm text-muted-foreground">총 {groups.length}개 그룹에 참가 중</p>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {myGroups.map((group) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {groups.map((group) => {
+            const dateInfo = getDateInfo(group);
+            return (
               <Card 
                 key={group.id}
                 className="cursor-pointer hover:shadow-lg transition-shadow"
@@ -199,7 +246,7 @@ const MyGroupsTab = () => {
                       <h3 className="font-semibold text-lg">{group.name}</h3>
                       <p className="text-sm text-muted-foreground mt-1">{group.description}</p>
                     </div>
-                    {getRoleBadge(group.role)}
+                    {getBadge(group)}
                   </div>
                 </CardHeader>
                 
@@ -219,33 +266,35 @@ const MyGroupsTab = () => {
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
-                        <span>참가일: {formatDate(group.joinedAt)}</span>
+                        <span>{dateInfo.label}: {formatDate(dateInfo.date)}</span>
                       </div>
                     </div>
                     
-                    <div className="text-xs text-muted-foreground">
-                      마지막 활동: {formatDate(group.lastActivity)}
-                    </div>
+                    {dateInfo.lastActivity && (
+                      <div className="text-xs text-muted-foreground">
+                        마지막 활동: {formatDate(dateInfo.lastActivity)}
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            );
+          })}
+        </div>
+      </TabsContent>
+
+      <TabsContent value="applied" className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold">신청한 그룹</h2>
+            <p className="text-sm text-muted-foreground">총 {groups.length}개 그룹에 신청</p>
           </div>
         </div>
-      )}
 
-      {/* 신청한 그룹 섹션 */}
-      {appliedGroups.length > 0 && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold">신청한 그룹</h2>
-              <p className="text-sm text-muted-foreground">총 {appliedGroups.length}개 그룹에 신청</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {appliedGroups.map((group) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {groups.map((group) => {
+            const dateInfo = getDateInfo(group);
+            return (
               <Card 
                 key={group.id}
                 className="cursor-pointer hover:shadow-lg transition-shadow"
@@ -270,7 +319,7 @@ const MyGroupsTab = () => {
                       <h3 className="font-semibold text-lg">{group.name}</h3>
                       <p className="text-sm text-muted-foreground mt-1">{group.description}</p>
                     </div>
-                    {getStatusBadge(group.status)}
+                    {getBadge(group)}
                   </div>
                 </CardHeader>
                 
@@ -290,17 +339,17 @@ const MyGroupsTab = () => {
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
-                        <span>신청일: {formatDate(group.appliedAt)}</span>
+                        <span>{dateInfo.label}: {formatDate(dateInfo.date)}</span>
                       </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
+            );
+          })}
         </div>
-      )}
-    </div>
+      </TabsContent>
+    </Tabs>
   );
 };
 
