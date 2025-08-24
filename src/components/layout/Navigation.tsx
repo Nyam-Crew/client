@@ -1,6 +1,6 @@
 import {useEffect, useState} from 'react';
 import {Link, useLocation} from 'react-router-dom';
-import {Bell, BookOpen, Home, User, UserPlus, Users} from 'lucide-react';
+import {Bell, BookOpen, Home, User, UserPlus, Users, Trophy} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {activateStompClient, subscribeNotification} from "@/lib/websocket.ts";
 import {useQuery, useQueryClient} from "@tanstack/react-query";
@@ -42,6 +42,7 @@ const Navigation = () => {
   const navItems = [
     {icon: Home, label: '홈', path: '/'},
     {icon: BookOpen, label: '기록', path: '/meal'},
+    {icon: Trophy, label: '챌린지', path: '/challenge'},
     {icon: Users, label: '커뮤니티', path: '/community'},
     {icon: UserPlus, label: '그룹', path: '/teams'},
     {icon: User, label: '마이페이지', path: '/profile'},
