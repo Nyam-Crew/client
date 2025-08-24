@@ -8,11 +8,17 @@ import {defaultFetch} from "@/api/defaultFetch.ts";
 import {Popover, PopoverContent, PopoverTrigger} from "@radix-ui/react-popover";
 import {AlertContainer} from "@/components/layout/AlertContainer.tsx";
 
+// 새 알림이 존재하는지 확인할 때 사용하는 Interface
+// api/notify/status 의 응답으로 전달됩니다.
+interface notifyStatus {
+  hasNew : boolean,
+}
+
 const useHasNotification = (isLoggedIn : boolean, isAuthChecking : boolean) => {
   return useQuery({
     queryKey: ["hasNotification"],
     queryFn: async () => {
-      const res = await defaultFetch("/api/notify/status");
+      const res = await defaultFetch<notifyStatus>("/api/notify/status");
       return res.hasNew;
     },
     enabled : isLoggedIn && !isAuthChecking,   // 로그인 한 상태이면서, 권한 체크 끝나야 실행
