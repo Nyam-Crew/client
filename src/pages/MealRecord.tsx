@@ -5,7 +5,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import WaterIntakeDialog from '@/components/water/WaterIntakeDialog';
 import CalendarViewDialog from '@/components/meal-log/CalendarViewDialog';
 import { useToast } from '@/hooks/use-toast';
-import { defaultFetch } from '@/api/defaultFetch';
+import { getInsightsForDay, DayInsights } from '@/api/mealApi';
+import { getTodayMissions, completeMission, Mission } from '@/api/missions';
 import {
   Sun,
   Mountain,
@@ -43,21 +44,6 @@ interface DayMealData {
   };
 }
 
-interface DayInsights {
-  memberId: number;
-  nickname: string | null;
-  age: number;
-  bmi: number | null;
-  bmr: number | null;
-  tdee: number | null;
-  recommendedCalories: number | null;
-  totalProtein: number;        // g
-  totalCarbohydrate: number;   // g
-  totalFat: number;            // g
-  totalWater: number;          // ml
-  totalKcal: number;           // kcal
-}
-
 const addDays = (d: Date, days: number) => {
   const nd = new Date(d);
   nd.setDate(nd.getDate() + days);
@@ -90,34 +76,29 @@ const MealRecord = () => {
   const [weightLoading, setWeightLoading] = useState(false);
   const [dayData, setDayData] = useState<DayMealData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [dailyMissions, setDailyMissions] = useState<any[]>([]);
+  const [dailyMissions, setDailyMissions] = useState<Mission[]>([]);
   const [missionsLoading, setMissionsLoading] = useState(false);
   const [insights, setInsights] = useState<DayInsights | null>(null);
 
-  // 날짜 문자열 (이 값이 바뀔 때만 insights API 호출)
   const selectedDateStr = useMemo(
       () => selectedDate.toISOString().split('T')[0],
       [selectedDate]
   );
 
-  // 데이터 로딩 (식사/물/체중) — 예시 목업
   useEffect(() => {
     fetchDayData();
   }, [selectedDate]);
 
-  // 데일리 미션 탭 들어올 때만 호출
   useEffect(() => {
     if (activeTab === 'dailyMissions') fetchDailyMissions();
   }, [activeTab]);
 
-  // selectedDate 변경 시 주 앵커/연/월 동기화
   useEffect(() => {
     setWeekAnchor(selectedDate);
     setSelectedYear(String(selectedDate.getFullYear()));
     setSelectedMonth(String(selectedDate.getMonth() + 1));
   }, [selectedDate]);
 
-  // searchParams → state 1회 반영
   useEffect(() => {
     const tab = searchParams.get('tab');
     const d = searchParams.get('d');
@@ -129,25 +110,20 @@ const MealRecord = () => {
       const parsed = new Date(d);
       if (!isNaN(parsed.getTime())) setSelectedDate(parsed);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-// state → URL (탭/날짜 바뀔 때마다)
   useEffect(() => {
     const params = new URLSearchParams(searchParams);
     params.set('tab', activeTab);
     params.set('d', selectedDateStr);
     setSearchParams(params, { replace: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, selectedDateStr]);
 
-  // 연/월 셀렉트 변경 시 selectedDate 이동 (일자는 가능한 유지, 말일 보정)
   useEffect(() => {
     const y = Number(selectedYear);
     const mIdx = Number(selectedMonth) - 1;
     const d = clampToMonth(y, mIdx, selectedDate.getDate());
 
-    // 값이 같으면 setState 하지 않음 (루프 방지)
     if (
         selectedDate.getFullYear() !== y ||
         selectedDate.getMonth() !== mIdx ||
@@ -155,15 +131,13 @@ const MealRecord = () => {
     ) {
       setSelectedDate(new Date(y, mIdx, d));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedYear, selectedMonth]);
 
-  // ✅ insights: 날짜 문자열이 바뀔 때만 호출
   useEffect(() => {
     const fetchInsights = async () => {
       try {
-        const data = await defaultFetch(`/api/meal/day/insights?date=${selectedDateStr}`, { method: 'GET' });
-        setInsights(data as DayInsights);
+        const data = await getInsightsForDay(selectedDateStr);
+        setInsights(data);
       } catch (e) {
         console.error('failed to fetch insights', e);
         setInsights(null);
@@ -172,10 +146,10 @@ const MealRecord = () => {
     fetchInsights();
   }, [selectedDateStr]);
 
-  // 목업/예시 API
   const fetchDayData = async () => {
     setLoading(true);
     const dateStr = selectedDate.toISOString().split('T')[0];
+    // TODO: This is mock data. Replace with a real API call if available.
     const mockData: DayMealData = {
       date: dateStr,
       meals: {
@@ -200,13 +174,11 @@ const MealRecord = () => {
     setLoading(false);
   };
 
-  // 라우팅 시 날짜 파라미터 항상 포함
   const handleMealClick = (mealId: string) =>
       navigate(`/meal-detail/${mealId}?d=${selectedDateStr}`);
   const handleAddFood = (mealType: string) =>
       navigate(`/food-search?mealType=${mealType}&d=${selectedDateStr}`);
 
-  // 물/체중 처리
   const handleWaterSave = async (amount: number) => {
     setWaterAmount(amount);
     toast({ title: "저장 완료", description: "물 섭취량이 저장되었습니다." });
@@ -221,11 +193,10 @@ const MealRecord = () => {
     setWeightLoading(false);
   };
 
-  // 데일리 미션
   const fetchDailyMissions = async () => {
     setMissionsLoading(true);
     try {
-      const data = await defaultFetch('/api/missions/today');
+      const data = await getTodayMissions();
       setDailyMissions(data);
     } catch (error) {
       console.error(error);
@@ -238,12 +209,10 @@ const MealRecord = () => {
       setMissionsLoading(false);
     }
   };
+
   const handleMissionComplete = async (dailyMissionId: number) => {
     try {
-      await defaultFetch(`/api/missions/${dailyMissionId}/complete`, {
-        method: 'POST',
-        body: { complete: true }
-      });
+      await completeMission(dailyMissionId);
       setDailyMissions(prev =>
           prev.map(m => (m.dailyMissionId === dailyMissionId ? { ...m, completed: true } : m))
       );
@@ -254,7 +223,6 @@ const MealRecord = () => {
     }
   };
 
-  // 스킵/카드 클릭
   const handleSkipMeal = async (mealType: string) => {
     setMealDialogOpen(false);
     toast({ title: "등록 완료", description: "'안먹었어요'가 등록되었습니다." });
@@ -267,7 +235,6 @@ const MealRecord = () => {
 
   const hasFoodItems = (foods: any[]) => foods && foods.length > 0;
 
-  // 주 네비게이션 렌더링 데이터
   const dateRange = (() => {
     const arr: Date[] = [];
     for (let i = -3; i <= 3; i++) arr.push(addDays(weekAnchor, i));
@@ -276,11 +243,9 @@ const MealRecord = () => {
   const goPrevWeek = () => setWeekAnchor(addDays(weekAnchor, -7));
   const goNextWeek = () => setWeekAnchor(addDays(weekAnchor, +7));
 
-  // ---- insights 우선 사용, 퍼센트만 계산 ----
   const consumedKcal = insights?.totalKcal ?? 0;
   const targetKcal   = insights?.recommendedCalories ?? 0;
 
-  // 퍼센트(구성 비율)만 계산
   const carbsPct =
       consumedKcal > 0 && insights
           ? (insights.totalCarbohydrate * 4 * 100) / consumedKcal
@@ -298,7 +263,6 @@ const MealRecord = () => {
     calories: {
       current: consumedKcal,
       target: targetKcal,
-      // 퍼센트 외 계산 금지 요건에 맞춰 remaining 은 0(표시 로직은 MyDayTab에서 분기)
       remaining: 0,
     },
     carbs:   { percentage: Math.max(0, Math.min(100, carbsPct)),   current: insights?.totalCarbohydrate ?? 0, target: 0 },
@@ -329,7 +293,7 @@ const MealRecord = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {Array.from({ length: 11 }, (_, i) => {
-                    const year = new Date().getFullYear() - 5 + i; // 현재-5 ~ 현재+5
+                    const year = new Date().getFullYear() - 5 + i;
                     return (
                         <SelectItem key={year} value={String(year)}>
                           {year}년
@@ -437,7 +401,6 @@ const MealRecord = () => {
             <MyDayTab
                 userInfo={{ name: insights?.nickname ?? '사용자' }}
                 bmi={insights?.bmi ?? null}
-                // BMI 범주 계산은 하지 않고, 중립값 전달(필요시 MyDayTab에서 처리)
                 bmiCategory={{ text: '', color: 'text-gray-400' }}
                 bmr={insights?.bmr ?? null}
                 tdee={insights?.tdee ?? null}
@@ -459,8 +422,8 @@ const MealRecord = () => {
                 handleSkipMeal={handleSkipMeal}
                 waterAmount={waterAmount}
                 handleWaterClick={(date, current) => {
-                  setWaterAmount(current);        // 다이얼로그 초기 표시값
-                  setWaterDialogOpen(true);       // 열기
+                  setWaterAmount(current);
+                  setWaterDialogOpen(true);
                 }}
                 onWaterAmountFetched={setWaterAmount}
             />

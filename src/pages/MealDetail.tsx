@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -15,19 +14,7 @@ import {
   Apple,
   Minus,
 } from 'lucide-react';
-import { defaultFetch } from '@/api/defaultFetch';
-
-interface FoodItem {
-  mealLogId: number;
-  memberId: number;
-  foodId: number;
-  foodName: string;
-  intakeAmount: number;
-  intakeKcal: number;
-  mealType: string; // LUNCH 등 대문자
-  createdDate: string;
-  modifiedDate: string;
-}
+import { getMealLog, deleteMealLog, updateMealLog, FoodItem, UpdateMealLogPayload } from '@/api/mealApi';
 
 interface MealData {
   mealType: string;  // lunch 등 소문자 UI용
@@ -200,17 +187,10 @@ const MealDetail = () => {
   const apiMealType = toApiMealType(mealType);
   const uiMealType = toUiMealType(mealType);
 
-  useEffect(() => {
-    fetchMealDetail();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiMealType, selectedDate]);
-
   const fetchMealDetail = async () => {
     try {
       setLoading(true);
-      const url = `/api/meal/log?mealType=${apiMealType}&date=${encodeURIComponent(selectedDate)}`;
-      const list = await defaultFetch(url, { method: 'GET' }) as FoodItem[]; // 응답: 배열
-      const foods = Array.isArray(list) ? list : [];
+      const foods = await getMealLog(apiMealType, selectedDate);
       const totalKcal = foods.reduce((sum, f) => sum + (f.intakeKcal || 0), 0);
 
       setMealData({
@@ -221,15 +201,18 @@ const MealDetail = () => {
     } catch (e) {
       console.error('Failed to fetch meal detail:', e);
       toast({ title: '오류', description: '식단 정보를 불러오는데 실패했습니다.', variant: 'destructive' });
-      // 실패 시에도 비어있는 상태로 렌더되도록
       setMealData({ mealType: uiMealType, totalKcal: 0, foods: [] });
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchMealDetail();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiMealType, selectedDate]);
+
   const handleAddFood = () => {
-    // 음식 검색으로 이동 (선택 후 이 페이지로 돌아오면 refetch)
     navigate(`/food-search?mealType=${uiMealType}&d=${selectedDate}`);
   };
 
@@ -240,9 +223,9 @@ const MealDetail = () => {
 
   const handleDeleteFood = async (mealLogId: number) => {
     try {
-      await defaultFetch(`/api/meal/log/${mealLogId}`, { method: 'DELETE' });
+      await deleteMealLog(mealLogId);
       toast({ title: '삭제 완료', description: '음식이 삭제되었습니다.' });
-      await fetchMealDetail(); // 최신 상태 반영
+      await fetchMealDetail();
     } catch (e) {
       console.error('Failed to delete food:', e);
       toast({ title: '오류', description: '음식 삭제에 실패했습니다.', variant: 'destructive' });
@@ -250,7 +233,6 @@ const MealDetail = () => {
   };
 
   const handleEditSave = async (updatedFood: FoodItem) => {
-    // 낙관적 업데이트
     const prev = mealData;
     if (prev) {
       const nextFoods = prev.foods.map(f => (f.mealLogId === updatedFood.mealLogId ? updatedFood : f));
@@ -258,9 +240,8 @@ const MealDetail = () => {
       setMealData({ ...prev, foods: nextFoods, totalKcal: nextTotal });
     }
 
-    // 예상 영양소(임시 비율 탄50/단20/지30) – 백엔드에 개별 영양 정보가 있으면 여기 대체
     const kcal = updatedFood.intakeKcal || 0;
-    const payload = {
+    const payload: UpdateMealLogPayload = {
       intakeAmount: updatedFood.intakeAmount,
       intakeKcal: updatedFood.intakeKcal,
       carbohydrate: Math.round(((kcal * 0.5) / 4) * 10) / 10,
@@ -269,20 +250,11 @@ const MealDetail = () => {
     };
 
     try {
-      await defaultFetch(`/api/meal/log/${updatedFood.mealLogId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          intakeAmount: updatedFood.intakeAmount,
-          intakeKcal: updatedFood.intakeKcal,
-          carbohydrate: Math.round(((kcal * 0.5) / 4) * 10) / 10,
-          protein: Math.round(((kcal * 0.2) / 4) * 10) / 10,
-          fat: Math.round(((kcal * 0.3) / 9) * 10) / 10,
-        }),
-      });
+      await updateMealLog(updatedFood.mealLogId, payload);
       toast({ title: '수정 완료', description: '음식 정보가 수정되었습니다.' });
     } catch (e) {
       console.error('Failed to update food:', e);
-      if (prev) setMealData(prev); // 롤백
+      if (prev) setMealData(prev);
       toast({ title: '오류', description: '음식 수정에 실패했습니다.', variant: 'destructive' });
     }
   };
@@ -291,7 +263,6 @@ const MealDetail = () => {
     navigate(`/meal-record?tab=whatIAte&d=${selectedDate}`);
   };
 
-  // 대략적 영양소 퍼센트 (UI 미리보기용)
   const nutrients = useMemo(() => {
     const total = mealData?.totalKcal || 0;
     if (!total) return { carbs: 0, protein: 0, fat: 0 };
@@ -340,7 +311,6 @@ const MealDetail = () => {
 
   return (
       <div className="min-h-screen bg-background">
-        {/* Header */}
         {/* Header */}
         <div className="bg-background border-b px-4 py-4">
           <div className="flex items-center gap-2">

@@ -1,60 +1,89 @@
+// client/src/pages/RecordCalendar.tsx
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
-import { defaultFetch } from '@/api/defaultFetch.ts';
+import { getCalendarForMonth, type CalendarMonthResponse } from '@/api/mealApi';
+
+type DayData = {
+  calories: number;
+  weight?: number;
+  water?: number;
+  missionsCompleted: boolean;
+};
+
+const MAX_MONTH_FETCH_RETRY = 1;
 
 const RecordCalendar = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarData, setCalendarData] = useState<CalendarMonthResponse | null>(null);
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const headerRef = useRef<HTMLDivElement | null>(null);
+
   useLayoutEffect(() => {
     const onResize = () => {};
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  // 데이터 로드
-  const fetchCalendarData = async (year: number, month: number) => {
-    setLoading(true);
-    try {
-      const data = await defaultFetch(`/api/calendar/month?year=${year}&month=${month}`, {
-        method: 'GET',
-      });
-      if (!data || typeof data !== 'object' || !('items' in data)) {
-        console.error('[RecordCalendar] JSON 형식 불일치', data);
-        throw new Error('달력 응답 형식이 올바르지 않습니다.');
-      }
-      setCalendarData(data as CalendarMonthResponse);
-    } catch (error) {
-      console.error('Failed to fetch calendar data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // URL 파라미터(d=YYYY-MM-DD)로 초기 선택/월 설정
   useEffect(() => {
     const dateParam = searchParams.get('d');
     if (dateParam) {
-      const parsedDate = new Date(dateParam);
-      if (!isNaN(parsedDate.getTime())) {
-        setSelectedDate(parsedDate);
-        setCurrentMonth(parsedDate);
+      const parsed = new Date(dateParam);
+      if (!Number.isNaN(parsed.getTime())) {
+        setSelectedDate(parsed);
+        setCurrentMonth(parsed);
       }
     }
   }, [searchParams]);
 
+  // 월 변경 시 데이터 로드
   useEffect(() => {
-    const controller = new AbortController();
-    fetchCalendarData(currentMonth.getFullYear(), currentMonth.getMonth() + 1);
-    return () => controller.abort();
+    let aborted = false;
+    const load = async () => {
+      setLoading(true);
+      setFetchError(null);
+      try {
+        const y = currentMonth.getFullYear();
+        const m = currentMonth.getMonth() + 1;
+
+        let data: CalendarMonthResponse | null = null;
+        let tries = 0;
+
+        while (tries <= MAX_MONTH_FETCH_RETRY) {
+          try {
+            data = await getCalendarForMonth(y, m);
+            break;
+          } catch (e) {
+            if (tries === MAX_MONTH_FETCH_RETRY) throw e;
+            tries += 1;
+          }
+        }
+
+        if (!aborted) setCalendarData(data!);
+      } catch (err) {
+        if (!aborted) {
+          console.error('[RecordCalendar] fetch error:', err);
+          setCalendarData(null);
+          setFetchError('달력 데이터를 불러오지 못했습니다.');
+        }
+      } finally {
+        if (!aborted) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      aborted = true;
+    };
   }, [currentMonth]);
 
   const formatDateKey = (date: Date): string =>
@@ -64,14 +93,14 @@ const RecordCalendar = () => {
 
   const getDayData = (date: Date): DayData | null => {
     if (!calendarData) return null;
-    const dateKey = formatDateKey(date);
-    const dayItem = calendarData.items.find((item) => item.date === dateKey);
-    if (!dayItem) return null;
+    const key = formatDateKey(date);
+    const item = calendarData.items.find((i) => i.date === key);
+    if (!item) return null;
     return {
-      calories: dayItem.kcal || 0,
-      weight: dayItem.weight || undefined,
-      water: dayItem.water || undefined,
-      missionsCompleted: dayItem.achieved,
+      calories: item.kcal || 0,
+      weight: item.weight ?? undefined,
+      water: item.water ?? undefined,
+      missionsCompleted: item.achieved,
     };
   };
 
@@ -80,16 +109,19 @@ const RecordCalendar = () => {
     d.setMonth(d.getMonth() - 1);
     setCurrentMonth(d);
   };
+
   const handleNextMonth = () => {
     const d = new Date(currentMonth);
     d.setMonth(d.getMonth() + 1);
     setCurrentMonth(d);
   };
+
   const goToToday = () => {
     const today = new Date();
     setCurrentMonth(today);
     setSelectedDate(today);
   };
+
   const handleBack = () => {
     if (window.history.length > 1) navigate(-1);
     else navigate(`/record?d=${formatDateKey(selectedDate)}&tab=myday`);
@@ -145,6 +177,13 @@ const RecordCalendar = () => {
                 </Button>
               </div>
 
+              {/* 에러/로딩 상태 */}
+              {fetchError && (
+                  <div className="mb-3 text-sm text-red-600" role="alert">
+                    {fetchError}
+                  </div>
+              )}
+
               <div className="calendar-container w-full">
                 <Calendar
                     mode="single"
@@ -152,13 +191,14 @@ const RecordCalendar = () => {
                     onSelect={(date) => date && setSelectedDate(date)}
                     month={currentMonth}
                     onMonthChange={(newMonth) => setCurrentMonth(newMonth)}
-                    /* ✅ 이번 달만 표시 */
+                    /* 이번 달만 표시 */
                     showOutsideDays={false}
                     className="w-full"
                     components={{
                       DayContent: ({ date }) => {
                         const dayData = getDayData(date);
-                        const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
+                        const isSelected =
+                            !!selectedDate && date.toDateString() === selectedDate.toDateString();
                         const isToday = date.toDateString() === new Date().toDateString();
                         const isWeekend = [0, 6].includes(date.getDay());
 
@@ -183,7 +223,9 @@ const RecordCalendar = () => {
                           </span>
 
                                 {dayData?.missionsCompleted && (
-                                    <span className="text-[18px]" aria-label="미션 달성">✅</span>
+                                    <span className="text-[18px]" aria-label="미션 달성">
+                              ✅
+                            </span>
                                 )}
                               </div>
 
@@ -193,14 +235,13 @@ const RecordCalendar = () => {
                               )}
 
                               {/* 요약 */}
-                              {/* 요약 */}
                               <div className="mt-2 space-y-1 text-[11px] leading-4 text-gray-700">
                                 {dayData?.calories ? (
                                     <div className="flex justify-between">
                                       <span className="text-gray-500">🍔</span>
                                       <span className="font-medium tabular-nums">
-                                        {dayData.calories.toLocaleString()}kcal
-                                      </span>
+                                {dayData.calories.toLocaleString()}kcal
+                              </span>
                                     </div>
                                 ) : null}
 
@@ -215,19 +256,17 @@ const RecordCalendar = () => {
                                     <div className="flex justify-between">
                                       <span className="text-gray-500">💧</span>
                                       <span className="tabular-nums">
-                                        {(dayData.water / 1000).toFixed(1)}L
-                                      </span>
+                                {(dayData.water / 1000).toFixed(1)}L
+                              </span>
                                     </div>
                                 ) : null}
                               </div>
-
-
                             </div>
                         );
                       },
                     }}
                     classNames={{
-                      /* 레이아웃: 꽉 찬 달력, outside days 미표시(위 prop로 이미 숨김) */
+                      /* 꽉 찬 달력, outside days 미표시 */
                       months: 'h-full flex-1',
                       month: 'h-full flex-1 flex flex-col',
                       table: 'w-full border-collapse border-spacing-0 h-full',
@@ -239,7 +278,7 @@ const RecordCalendar = () => {
                       day: 'w-full h-24 sm:h-28 md:h-32 p-0',
                       day_today: '',
                       day_selected: '',
-                      day_outside: 'hidden', // 안전빵(혹시 prop이 무시되더라도 숨김)
+                      day_outside: 'hidden',
                       caption_label: 'hidden',
                       caption: 'hidden',
                       nav: 'hidden',
