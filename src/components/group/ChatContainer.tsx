@@ -141,6 +141,16 @@ const ChatContainer = ({ teamId, currentUserId }: ChatContainerProps) => {
     });
   };
 
+  // 날짜 포맷팅 (YYYY-MM-DD or Korean locale)
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
   const isMyMessage = (senderId: number) => senderId === currentUserId;
 
   return (
@@ -150,8 +160,8 @@ const ChatContainer = ({ teamId, currentUserId }: ChatContainerProps) => {
         {/* 전체 채팅 보기 버튼 */}
         {showAllButton && (
           <div className="flex justify-center mb-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={handleShowAll}
               className="text-xs text-muted-foreground"
@@ -166,34 +176,48 @@ const ChatContainer = ({ teamId, currentUserId }: ChatContainerProps) => {
           const isMine = isMyMessage(message.senderId);
           const showSender = shouldShowSender(message, index);
 
+          // 날짜 구분선 렌더링 조건
+          const currentDate = message.timestamp ? new Date(message.timestamp).toDateString() : '';
+          const prevDate = index > 0 && displayedMessages[index - 1].timestamp ? new Date(displayedMessages[index - 1].timestamp).toDateString() : '';
+          const showDateSeparator = index === 0 || currentDate !== prevDate;
+
           return (
-            <div key={message.messageId} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[70%] ${isMine ? 'items-end' : 'items-start'} flex flex-col`}>
-                {/* 발신자 이름 (그룹 첫 메시지에만) */}
-                {!isMine && showSender && (
-                  <div className="text-xs text-muted-foreground mb-1 px-1">
-                    {message.sender}
-                  </div>
-                )}
-                
-                {/* 말풍선과 시간 */}
-                <div className={`flex items-end gap-1 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
-                  {/* 말풍선 */}
-                  <div className={`
-                    rounded-2xl px-3 py-2 max-w-full word-wrap break-words
-                    ${isMine 
-                      ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' 
-                      : 'bg-muted text-muted-foreground'
-                    }
-                  `}>
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                      {message.content}
-                    </p>
-                  </div>
-                  
-                  {/* 시간 */}
-                  <div className="text-xs text-muted-foreground whitespace-nowrap">
-                    {formatTime(message.timestamp)}
+            <div key={message.messageId} className="w-full">
+              {showDateSeparator && (
+                <div className="flex items-center justify-center my-2 text-xs text-muted-foreground">
+                  <div className="border-t border-gray-300 flex-grow mx-2" />
+                  <span>{formatDate(message.timestamp || '')}</span>
+                  <div className="border-t border-gray-300 flex-grow mx-2" />
+                </div>
+              )}
+              <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[70%] ${isMine ? 'items-end' : 'items-start'} flex flex-col`}>
+                  {/* 발신자 이름 (그룹 첫 메시지에만) */}
+                  {!isMine && showSender && (
+                    <div className="text-xs text-muted-foreground mb-1 px-1">
+                      {message.sender}
+                    </div>
+                  )}
+
+                  {/* 말풍선과 시간 */}
+                  <div className={`flex items-end gap-1 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}>
+                    {/* 말풍선 */}
+                    <div className={`
+                      rounded-2xl px-3 py-2 max-w-full word-wrap break-words
+                      ${isMine 
+                        ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' 
+                        : 'bg-muted text-muted-foreground'
+                      }
+                    `}>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                        {message.content}
+                      </p>
+                    </div>
+
+                    {/* 시간 */}
+                    <div className="text-xs text-muted-foreground whitespace-nowrap">
+                      {formatTime(message.timestamp)}
+                    </div>
                   </div>
                 </div>
               </div>
