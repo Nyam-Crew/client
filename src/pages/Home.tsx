@@ -87,7 +87,7 @@ const Home = () => {
 
         <div className="max-w-7xl mx-auto p-6 space-y-6">
           {/* 빠른 액션 버튼들 */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <Link to="/meal">
               <Button
                   className="w-full h-20 flex-col gap-2 bg-brand-light hover:bg-brand-green text-foreground hover:text-white transition-all duration-300 hover:scale-105 shadow-sm hover:shadow-md">
@@ -107,13 +107,6 @@ const Home = () => {
                   className="w-full h-20 flex-col gap-2 bg-brand-light hover:bg-brand-green text-foreground hover:text-white transition-all duration-300 hover:scale-105 shadow-sm hover:shadow-md">
                 <Users size={24}/>
                 <span>커뮤니티</span>
-              </Button>
-            </Link>
-            <Link to="/chat">
-              <Button
-                  className="w-full h-20 flex-col gap-2 bg-brand-light hover:bg-brand-green text-foreground hover:text-white transition-all duration-300 hover:scale-105 shadow-sm hover:shadow-md">
-                <MessageCircle size={24}/>
-                <span>채팅</span>
               </Button>
             </Link>
           </div>
