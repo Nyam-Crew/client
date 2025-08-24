@@ -7,11 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import axios from 'axios'; // axios import는 남겨둡니다.
 
-interface CreateGroupForm {
+interface CreateGroupFormState {
   name: string;
   description: string;
-  maxMembers: number;
+  maxMembers: number | string; // number 또는 string 허용
   image?: File;
 }
 
@@ -19,42 +20,60 @@ const CreateGroupPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState<CreateGroupForm>({
+  // useState의 타입을 CreateGroupFormState로 변경
+  const [form, setForm] = useState<CreateGroupFormState>({
     name: '',
     description: '',
-    maxMembers: 20
+    maxMembers: 10,
   });
 
-  const handleInputChange = (field: keyof CreateGroupForm, value: string | number | File) => {
-    setForm(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+
+    // maxMembers 필드일 경우, 숫자만 입력되도록 처리
+    if (name === 'maxMembers') {
+      if (value === '' || /^[0-9]*$/.test(value)) {
+        setForm(prev => ({
+          ...prev,
+          [name]: value
+        }));
+      }
+    } else {
+      // 그 외 필드는 그냥 업데이트
+      setForm(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      handleInputChange('image', file);
+      // setForm을 사용하여 image 상태를 직접 업데이트합니다.
+      setForm(prev => ({
+        ...prev,
+        image: file
+      }));
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!form.name.trim() || !form.description.trim()) {
-      toast({
-        title: "입력 오류",
-        description: "그룹명과 소개를 모두 입력해주세요.",
-        variant: "destructive"
-      });
+      // ... (에러 처리)
       return;
     }
 
-    if (form.maxMembers < 2 || form.maxMembers > 50) {
+    // 최종적으로 숫자로 변환
+    const maxMembersNumber = Number(form.maxMembers);
+
+    // 숫자형으로 한 번만 유효성 검사
+    if (maxMembersNumber < 2 || maxMembersNumber > 10) {
       toast({
         title: "입력 오류",
-        description: "최대 인원은 2명에서 50명 사이여야 합니다.",
+        description: "최대 인원은 2명에서 10명 사이여야 합니다.",
         variant: "destructive"
       });
       return;
@@ -62,22 +81,38 @@ const CreateGroupPage = () => {
 
     setLoading(true);
 
+    const formData = new FormData();
+    
+    const dto = {
+      teamTitle: form.name,
+      teamDescription: form.description,
+      teamMaxMembers: maxMembersNumber,
+    };
+
+    formData.append('dto', new Blob([JSON.stringify(dto)], { type: 'application/json' }));
+
+    if (form.image) {
+      formData.append('imageFile', form.image);
+    }
+
     try {
-      // 실제 구현에서는 이미지 업로드 후 그룹 생성 API 호출
-      console.log('Creating group:', form);
-      
-      // 시뮬레이션
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const response = await axios.post('/api/teams', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const createdTeam = response.data;
       
       toast({
         title: "그룹 생성 완료",
         description: "새로운 그룹이 성공적으로 생성되었습니다."
       });
       
-      // 생성된 그룹으로 이동 (실제로는 API 응답의 그룹 ID 사용)
-      navigate('/api/teams/1');
+      navigate(`/teams/${createdTeam.teamId}`);
       
     } catch (error) {
+      console.error("Group creation failed:", error);
       toast({
         title: "오류",
         description: "그룹 생성 중 오류가 발생했습니다.",
@@ -96,7 +131,7 @@ const CreateGroupPage = () => {
           <Button 
             variant="ghost" 
             size="sm"
-            onClick={() => navigate('/api/teams')}
+            onClick={() => navigate('/teams')}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             그룹으로 돌아가기
@@ -123,7 +158,8 @@ const CreateGroupPage = () => {
                   type="text"
                   placeholder="예: 매일 운동하기"
                   value={form.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  name="name"
+                  onChange={handleInputChange}
                   maxLength={50}
                   className="w-full"
                 />
@@ -141,7 +177,8 @@ const CreateGroupPage = () => {
                   id="group-description"
                   placeholder="그룹의 목표와 활동에 대해 설명해주세요"
                   value={form.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  name="description" // name 속성 추가
+                  onChange={handleInputChange}
                   maxLength={500}
                   rows={4}
                   className="w-full resize-none"
@@ -160,13 +197,14 @@ const CreateGroupPage = () => {
                   id="max-members"
                   type="number"
                   min="2"
-                  max="50"
-                  value={form.maxMembers}
-                  onChange={(e) => handleInputChange('maxMembers', parseInt(e.target.value) || 20)}
+                  max="10"
+                  value={String(form.maxMembers)}
+                  name="maxMembers" // name 속성 추가
+                  onChange={handleInputChange}
                   className="w-full"
                 />
                 <p className="text-xs text-muted-foreground">
-                  2명에서 50명까지 설정 가능합니다
+                  2명에서 10명까지 설정 가능합니다
                 </p>
               </div>
 
@@ -197,7 +235,7 @@ const CreateGroupPage = () => {
                   type="button"
                   variant="outline"
                   className="flex-1"
-                  onClick={() => navigate('/api/teams')}
+                  onClick={() => navigate('/teams')}
                   disabled={loading}
                 >
                   취소
