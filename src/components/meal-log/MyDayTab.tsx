@@ -199,7 +199,7 @@ const MyDayTab = ({
                   {!!bmi && bmiCategory?.text ? (
                       <div className={`text-xs font-medium ${bmiCategory.color}`}>{bmiCategory.text}</div>
                   ) : (
-                      <div className="text-xs text-gray-400">-</div>
+                      <div className="text-xs text-gray-400"></div>
                   )}
                 </div>
                 <div className="p-3 bg-gray-50 rounded-lg">

@@ -12,8 +12,21 @@ import {
   MessageCircle
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { getTodayMissions, Mission } from '@/api/missions';
 
 const Home = () => {
+  const [missions, setMissions] = useState<Mission[]>([]);
+
+  useEffect(() => {
+    const fetchMissions = async () => {
+      const todayMissions = await getTodayMissions();
+      setMissions(todayMissions);
+    };
+
+    fetchMissions();
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       {/* 헤더 섹션 */}
@@ -29,16 +42,10 @@ const Home = () => {
               </p>
             </div>
             <div className="text-right">
-              <Badge variant="secondary" className="mb-2">
-                7일 연속 기록 🔥
-              </Badge>
-              <p className="text-sm text-muted-foreground">
-                목표 달성률 85%
-              </p>
             </div>
           </div>
 
-          {/* 오늘의 할 일 */}
+          {/* 오늘의 미션 */}
           <Card className="bg-white/50 backdrop-blur-sm border-white/20">
             <CardContent className="p-4">
               <h2 className="font-semibold mb-3 flex items-center gap-2">
@@ -46,21 +53,19 @@ const Home = () => {
                 오늘의 미션
               </h2>
               <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-warning rounded-full"></div>
-                  <span className="text-sm">아침 식사 기록하기</span>
-                  <Badge variant="secondary" className="ml-auto">대기중</Badge>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-success rounded-full"></div>
-                  <span className="text-sm">물 8잔 마시기</span>
-                  <Badge variant="default" className="ml-auto">완료</Badge>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-muted rounded-full"></div>
-                  <span className="text-sm">운동 30분</span>
-                  <Badge variant="outline" className="ml-auto">예정</Badge>
-                </div>
+                {missions.length > 0 ? (
+                  missions.map((mission) => (
+                    <div key={mission.dailyMissionId} className="flex items-center gap-3">
+                      <div className={`w-2 h-2 ${mission.completed ? 'bg-success' : 'bg-warning'} rounded-full`}></div>
+                      <span className="text-sm">{mission.title}</span>
+                      <Badge variant={mission.completed ? 'default' : 'secondary'} className="ml-auto">
+                        {mission.completed ? '완료' : '미완료'}
+                      </Badge>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">오늘의 미션이 없습니다.</p>
+                )}
               </div>
             </CardContent>
           </Card>

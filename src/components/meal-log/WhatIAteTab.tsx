@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Check, Droplets } from "lucide-react";
-import { defaultFetch } from "@/api/defaultFetch.ts";
+import { getMealDayLog, createMealLog, saveWeight, MealDayLogResponse } from "@/api/mealApi";
 
 /** 식사 카드 템플릿 데이터 */
 interface MealCardData {
@@ -54,14 +54,6 @@ const normalizeMealTypeForApi = (val: string): MealKey => {
   return "SNACK";
 };
 
-interface MealDayResponse {
-  /** ISO 또는 'YYYY-MM-DD' */
-  date: string;
-  meals: Record<MealKey, { totalKcal: number | null; takeMeal: boolean | null }>;
-  water: number | null;   // ml
-  weight: number | null;  // kg
-}
-
 const WhatIAteTab = ({
                        dateKey,
                        weight,
@@ -79,6 +71,7 @@ const WhatIAteTab = ({
                      }: WhatIAteTabProps) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const dFromURL = searchParams.get("d");
 
   /** 상태 계산: takeMeal만으로 결정 */
   type MealStatus = "empty" | "skipped" | "filled";
@@ -89,7 +82,6 @@ const WhatIAteTab = ({
   };
 
   /** URL ?d=YYYY-MM-DD → 없으면 오늘 날짜 */
-  const dFromURL = searchParams.get("d");
   const effectiveDate = useMemo(() => {
     if (dateKey && /^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return dateKey;
     if (dFromURL && /^\d{4}-\d{2}-\d{2}$/.test(dFromURL)) return dFromURL;
@@ -111,22 +103,14 @@ const WhatIAteTab = ({
     setApiLoading(true);
     setApiError(null);
 
-    const reqUrl = `/api/meal/day/log?date=${encodeURIComponent(effectiveDate)}`;
     try {
-      const data = await defaultFetch(reqUrl, { method: "GET" });
-      const res = data as MealDayResponse | undefined;
+      const res = await getMealDayLog(effectiveDate);
       if (!res || !res.meals) throw new Error("응답 형식이 올바르지 않습니다.");
 
-      // 템플릿 유지 + API merge (키 대문자 보정, null → 기본값)
       const merged = mealCards.map((mc) => {
         const key = String(mc.id).toUpperCase() as MealKey;
-        const fromApi = (res.meals as any)[key] as
-            | { totalKcal: number | null; takeMeal: boolean | null | string | undefined }
-            | undefined;
-
+        const fromApi = (res.meals as any)[key] as { totalKcal: number | null; takeMeal: boolean | null | string | undefined } | undefined;
         const totalKcal = typeof fromApi?.totalKcal === "number" ? fromApi.totalKcal : 0;
-
-        // takeMeal: 문자열/undefined → boolean|null 정규화
         let takeMeal: boolean | null = null;
         const raw = fromApi?.takeMeal;
         if (typeof raw === "boolean") takeMeal = raw;
@@ -137,7 +121,6 @@ const WhatIAteTab = ({
         } else {
           takeMeal = raw ?? null;
         }
-
         return { ...mc, totalKcal, takeMeal, foods: [] };
       });
 
@@ -182,16 +165,15 @@ const WhatIAteTab = ({
     totalKcal: typeof c.totalKcal === "number" ? c.totalKcal : 0,
     foods: Array.isArray(c.foods) ? c.foods : [],
   }));
-  const waterToShow =
-      typeof waterAmount === "number" ? waterAmount : (waterFromApi ?? 0);
+  const waterToShow = typeof waterAmount === "number" ? waterAmount : (waterFromApi ?? 0);
 
   /** “안먹었어요” 등록 → POST /api/meal/log 후 재조회 */
   const [skipPosting, setSkipPosting] = useState<string | null>(null);
   const handleMarkSkipped = async (mealType: string) => {
     try {
       setSkipPosting(mealType);
-      const body = {
-        foodId: 1,
+      await createMealLog({
+        foodId: 1, // "안먹었어요"에 대한 foodId, 서버와 협의 필요
         mealLogDate: effectiveDate,
         intakeAmount: 0,
         intakeKcal: 0.0,
@@ -199,8 +181,7 @@ const WhatIAteTab = ({
         protein: 0.0,
         fat: 0.0,
         mealType: normalizeMealTypeForApi(mealType),
-      };
-      await defaultFetch("/api/meal/log", { method: "POST", body });
+      });
       await refetchMealDay();
     } catch (e) {
       console.error("[WhatIAteTab] 안먹었어요 등록 실패:", e);
@@ -214,15 +195,7 @@ const WhatIAteTab = ({
   const saveTodayWeight = useCallback(async () => {
     try {
       setSavingWeight(true);
-      await defaultFetch("/api/meal/weight", {
-        method: "POST",
-        body: {
-          date: effectiveDate,     // 'YYYY-MM-DD'
-          weight: Number(weight),  // ex) 64.2
-        },
-      });
-      // (선택) 상위 콜백이 있는 경우 함께 호출하고 싶다면 아래 주석 해제
-      // await Promise.resolve(handleWeightSave?.());
+      await saveWeight({ date: effectiveDate, weight: Number(weight) });
       await refetchMealDay();
     } catch (e: any) {
       console.error("[WhatIAteTab] 체중 저장 실패:", e);
@@ -230,7 +203,7 @@ const WhatIAteTab = ({
     } finally {
       setSavingWeight(false);
     }
-  }, [effectiveDate, weight, refetchMealDay /*, handleWeightSave */]);
+  }, [effectiveDate, weight, refetchMealDay]);
 
   /** 상세 이동 경로(일관화) */
   const goDetail = (mealId: string) => {
