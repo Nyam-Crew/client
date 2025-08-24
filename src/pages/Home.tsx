@@ -20,29 +20,25 @@ import {ChallengeResponse} from "@/pages/Challenge.tsx";
 
 const Home = () => {
   const [missions, setMissions] = useState<Mission[]>([]);
+  const [challengeList, setChallengeList] = useState<ChallengeResponse[]>([]);
 
   useEffect(() => {
+    // 일일 미션 가져오기
     const fetchMissions = async () => {
       const todayMissions = await getTodayMissions();
       setMissions(todayMissions);
     };
 
-    fetchMissions();
-  }, []);
-
-  const [challengeList, setChallengeList] = useState<ChallengeResponse[]>([]);
-
-  // 렌더링과 동시에 진행중인 챌린지 정보 가져오기
-  useEffect(() => {
-    const getProgressingChallenge = async () => {
+    // 진행중인 챌린지 정보 가져오기
+    const fetchProgressingChallenge = async () => {
       const res = await defaultFetch<ChallengeResponse[]>("/api/challenge/progressing");
 
       setChallengeList(res);
     }
 
-    getProgressingChallenge();
-  }, [])
-
+    fetchProgressingChallenge();
+    fetchMissions();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
