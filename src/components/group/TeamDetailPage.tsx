@@ -35,6 +35,7 @@ import { getTeamDetails, TeamDetailDto } from '@/api/TeamApi.ts';
 import { getTeamFeed, TeamActivityFeedItem } from '@/api/TeamFeedApi.ts';
 import {getCurrentUserId, CurrentUserIdDto} from '@/api/UserApi.ts'
 import { useInView } from 'react-intersection-observer';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 // --- 타입 정의 ---
 type UserRole = 'LEADER' | 'SUB_LEADER' | 'MEMBER';
@@ -270,7 +271,12 @@ const TeamDetailPage = () => {
                                 <PopoverTrigger asChild><Button variant="outline" size="sm"><Settings className="h-4 w-4 mr-2"/>설정<ChevronDown className="h-3 w-3 ml-1"/></Button></PopoverTrigger>
                                 <PopoverContent className="w-64" align="end">
                                     <div className="space-y-3">
-                                        <div className="pb-2 border-b"><p className="text-sm font-medium">권한: {getRoleBadge(team.teamRole)}</p></div>
+                                        <div className="pb-2 border-b">
+                                            <div className="text-sm font-medium flex items-center gap-1.5">
+                                                <span>권한:</span>
+                                                {getRoleBadge(team.teamRole)}
+                                            </div>
+                                        </div>
                                         {team.teamRole === 'MEMBER' && (<div className="space-y-2"><Button variant="destructive" className="w-full justify-start text-sm" onClick={handleLeaveGroup}>그룹 나가기</Button></div>)}
                                         {(team.teamRole === 'LEADER' || team.teamRole === 'SUB_LEADER') && (
                                             <div className="space-y-2">
@@ -326,37 +332,111 @@ const TeamDetailPage = () => {
                         <Card className="h-[600px] flex flex-col">
                             <CardHeader className="pb-2">
                                 <CardTitle className="flex items-center gap-2">
-                                    <Bell className="h-5 w-5"/>실시간 피드
+                                    <Bell className="h-5 w-5" />
+                                    실시간 피드
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="flex-1 overflow-y-auto">
                                 <div className="space-y-4 pb-4">
-                                    {/* ▼▼▼▼▼ [수정] mockFeedData.map -> feedItems.map 으로 변경 ▼▼▼▼▼ */}
+                                    {/* 1. mockFeedData -> feedItems 로 변경 */}
                                     {feedItems.map((feedItem) => {
-                                        const isMyFeed = feedItem.memberId === currentUser?.memberId;
+                                        // 시스템 메시지인지 먼저 확인합니다.
+                                        const isSystemMessage = feedItem.memberId === null;
+
+                                        // 2. currentUserId -> currentUser?.memberId 로 변경
+                                        const isMyFeed = !isSystemMessage && currentUser ? feedItem.memberId === currentUser.memberId : false;
 
                                         const feedTime = new Date(feedItem.feedCreatedDate);
-                                        const timeStr = feedTime.toLocaleTimeString('ko-KR', {
+                                        const timeStr = feedTime.toLocaleString('ko-KR', {
+                                            year: 'numeric',
+                                            month: '2-digit',
+                                            day: '2-digit',
                                             hour: '2-digit',
                                             minute: '2-digit',
                                             hour12: false
                                         });
 
-                                        const getActivityIcon = (type: string) => { /* ... 기존과 동일 ... */ };
+                                        const getActivityIcon = (type: string) => {
+                                            switch (type) {
+                                                case 'WATER': return <Droplets className="w-4 h-4" />;
+                                                case 'MEAL': return <Utensils className="w-4 h-4" />;
+                                                case 'WEIGHT': return <Weight className="w-4 h-4" />;
+                                                case 'CHALLENGE': return <Target className="w-4 h-4" />;
+                                                case 'NOTICE': return <Bell className="w-4 h-4" />; // 공지 아이콘 추가
+                                                default: return <Bell className="w-4 h-4" />;
+                                            }
+                                        };
+
+                                        // 3. 시스템 메시지를 위한 별도 UI 추가
+                                        if (isSystemMessage) {
+                                            return (
+                                                <div key={feedItem.feedId} className="flex justify-center my-2">
+                                                    <div className="text-xs text-gray-500 bg-gray-100 dark:bg-gray-700 rounded-full px-3 py-1 flex items-center gap-1.5">
+                                                        {getActivityIcon(feedItem.activityType)}
+                                                        <span>{feedItem.activityMessage}</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        }
 
                                         return (
-                                            <div key={feedItem.feedId} /* ... 기존과 동일 ... */ >
-                                                {/* ... 기존 렌더링 로직 재사용 ... */}
-                                                <p className="text-sm leading-relaxed break-words">
-                                                    {feedItem.activityMessage} {/* 백엔드 메시지 사용 */}
-                                                </p>
-                                                {/* ... 기존 렌더링 로직 재사용 ... */}
+                                            <div
+                                                key={feedItem.feedId}
+                                                className={`flex w-full ${isMyFeed ? 'justify-end' : 'justify-start'}`}
+                                            >
+                                                <div className={`flex max-w-[80%] ${isMyFeed ? 'flex-row-reverse' : 'flex-row'} gap-2`}>
+                                                    {/* 프로필 이미지 (내 피드가 아닐 때만 표시) */}
+                                                    {!isMyFeed && (
+                                                        <Avatar className="w-8 h-8 mt-1">
+                                                            <AvatarImage src={feedItem.profileImageUrl} alt={feedItem.nickname} />
+                                                            <AvatarFallback className="text-xs bg-muted">
+                                                                {/* 4. 닉네임이 null일 경우를 대비한 안정성 추가 */}
+                                                                {(feedItem.nickname || '').slice(0, 2)}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                    )}
+
+                                                    {/* 메시지 영역 */}
+                                                    <div className={`flex flex-col ${isMyFeed ? 'items-end' : 'items-start'}`}>
+                                                        {/* 닉네임 (내 피드가 아닐 때만 표시) */}
+                                                        {!isMyFeed && (
+                                                            <div className="text-xs text-muted-foreground mb-1 px-1">
+                                                                {feedItem.nickname}
+                                                            </div>
+                                                        )}
+
+                                                        {/* 말풍선 */}
+                                                        <div
+                                                            className={`relative px-3 py-2 rounded-2xl shadow-sm ${
+                                                                isMyFeed
+                                                                    ? 'bg-[#c2d595] text-[#2d3d0f] rounded-br-md'
+                                                                    : 'bg-white text-foreground rounded-bl-md border border-border/50' // 남의 말풍선 색상을 흰색으로 변경
+                                                            }`}
+                                                        >
+                                                            <div className="flex items-start gap-2">
+                                                                <div className="flex-shrink-0 mt-0.5">
+                                                                    {getActivityIcon(feedItem.activityType)}
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <p className="text-sm leading-relaxed break-words">
+                                                                        {feedItem.activityMessage}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* 시간 */}
+                                                        <div className={`text-xs text-muted-foreground mt-1 px-1 ${isMyFeed ? 'text-right' : 'text-left'}`}>
+                                                            {timeStr}
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         );
                                     })}
                                 </div>
 
-                                {/* ▼▼▼▼▼ [추가] 무한 스크롤 로더 ▼▼▼▼▼ */}
+                                {/* 무한 스크롤 로더 추가 */}
                                 <div ref={feedLoaderRef} className="flex justify-center items-center h-16">
                                     {isFeedLoading && <p>피드를 불러오는 중...</p>}
                                     {!hasNext && feedItems.length > 0 && <p className="text-sm text-muted-foreground">모든 피드를 확인했습니다.</p>}
