@@ -151,29 +151,6 @@ const MyDayTab = ({
             </CardContent>
           </Card>
 
-          {/* 물 섭취량 */}
-          {showWater && (
-            <Card className="border-0 shadow-sm bg-white">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <Droplets size={18} className="text-sky-500" />
-                  <span className="text-xs text-gray-500">물 섭취</span>
-                </div>
-                <div className="text-2xl font-bold text-gray-900 leading-tight">
-                  {Math.round(waterMl!)}
-                  <span className="text-sm text-gray-500 ml-1">ml</span>
-                </div>
-
-                {/* 물 목표 배지 (있을 때만) */}
-                {showWaterGoalBadge && (
-                  <div className="mt-2 inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-[11px] text-sky-700">
-                    목표 {waterGoalMl}ml 대비 {Math.round((waterMl! / waterGoalMl!) * 100)}%
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
           {/* 체중: 오늘/프로필/변화 */}
           <Card className="border-0 shadow-sm bg-white">
             <CardContent className="p-4">
@@ -198,6 +175,31 @@ const MyDayTab = ({
               </div>
             </CardContent>
           </Card>
+
+          {/* 물 섭취량 */}
+          {showWater && (
+            <Card className="border-0 shadow-sm bg-white">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Droplets size={18} className="text-sky-500" />
+                  <span className="text-xs text-gray-500">물 섭취</span>
+                </div>
+                <div className="text-2xl font-bold text-gray-900 leading-tight">
+                  {Math.round(waterMl!)}
+                  <span className="text-sm text-gray-500 ml-1">ml</span>
+                </div>
+
+                {/* 물 목표 배지 (있을 때만) */}
+                {showWaterGoalBadge && (
+                  <div className="mt-2 inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-[11px] text-sky-700">
+                    목표 {waterGoalMl}ml 대비 {Math.round((waterMl! / waterGoalMl!) * 100)}%
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

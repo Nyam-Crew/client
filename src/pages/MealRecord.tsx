@@ -397,7 +397,7 @@ const MealRecord = () => {
             </TabsTrigger>
             <TabsTrigger value="whatIAte" className="flex items-center gap-2">
               <Utensils size={16} />
-              <span>먹었어요</span>
+              <span>기록</span>
             </TabsTrigger>
             <TabsTrigger value="dailyMissions" className="flex items-center gap-2">
               <Target size={16} />
@@ -416,7 +416,8 @@ const MealRecord = () => {
 
                 waterMl={insights?.totalWater ?? null}   // 서버에서 주는 총 물(ml)
                 waterGoalMl={1000}                       // 목표 물(원하면 1000 고정 또는 사용자 설정값)
-                weightKg={weight ?? null}                // 이미 state에 있는 오늘 체중
+                profileWeightKg={insights?.profileWeight ?? null}
+                todayWeightKg={insights?.todayWeight ?? null}
             />
           </TabsContent>
 
