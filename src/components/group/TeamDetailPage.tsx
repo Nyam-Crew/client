@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import ChatContainer from './ChatContainer';
+import TeamNoticeEditor from './TeamNoticeEditor';
 
 interface TeamDetail {
   id: string;
@@ -32,7 +33,7 @@ interface Notice {
   content: string;
   author: string;
   createdAt: string;
-  pinned: boolean;
+  type: 'FIXED' | 'NORMAL';
 }
 
 interface TeamActivityFeedItem {
@@ -57,15 +58,25 @@ const mockTeam: TeamDetail = {
   joinedAt: '2024-01-15'
 };
 
-// 그룹당 하나의 공지사항만 허용
-const mockNotice: Notice | null = {
-  id: '1',
-  title: '그룹 운영 방침 안내',
-  content: '안녕하세요! 매일 운동하기 그룹의 운영 방침을 안내드립니다. 매일 30분 이상 운동을 목표로 하며, 서로 격려하고 응원하는 분위기를 만들어가겠습니다. 무리한 운동보다는 꾸준한 운동을 지향하며, 부상 예방에 항상 주의해주세요.',
-  author: '김운동',
-  createdAt: '2024-01-20',
-  pinned: true
-};
+// 타입별 공지사항 목업 데이터
+const mockNotices: Notice[] = [
+  {
+    id: '1',
+    title: '그룹 운영 방침 안내',
+    content: '안녕하세요! 매일 운동하기 그룹의 운영 방침을 안내드립니다. 매일 30분 이상 운동을 목표로 하며, 서로 격려하고 응원하는 분위기를 만들어가겠습니다. 무리한 운동보다는 꾸준한 운동을 지향하며, 부상 예방에 항상 주의해주세요.',
+    author: '김운동',
+    createdAt: '2024-01-20',
+    type: 'FIXED'
+  },
+  {
+    id: '2',
+    title: '이번 주 운동 목표',
+    content: '이번 주는 총 5회 이상 운동하는 것을 목표로 해요! 매일 하기 힘들더라도 주 5회만 달성하면 충분합니다. 함께 화이팅해요! 💪',
+    author: '김운동',
+    createdAt: '2024-01-22',
+    type: 'NORMAL'
+  }
+];
 
 // 목업 피드 데이터
 const mockFeedData: TeamActivityFeedItem[] = [
@@ -141,10 +152,11 @@ const TeamDetailPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [team, setTeam] = useState<TeamDetail | null>(null);
-  const [notice, setNotice] = useState<Notice | null>(null);
+  const [notices, setNotices] = useState<{ fixed?: Notice; normal?: Notice }>({});
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('notices');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [noticeEditor, setNoticeEditor] = useState<{ open: boolean; type: 'FIXED' | 'NORMAL'; notice?: Notice }>({ open: false, type: 'FIXED' });
   // 목업용 역할 설정 (실제 API 연동 시 서버에서 받아옴)
   const [currentUserRole] = useState<'member' | 'sub_leader' | 'leader'>('leader'); // 테스트용으로 leader로 설정
 
@@ -152,7 +164,17 @@ const TeamDetailPage = () => {
     // 목업 데이터 로딩 시뮬레이션
     setTimeout(() => {
       setTeam(mockTeam);
-      setNotice(mockNotice);
+      // 목업 공지사항 배열을 타입별로 분리하여 상태에 저장
+      const noticesByType = mockNotices.reduce((acc, notice) => {
+        if (notice.type === 'FIXED') {
+          acc.fixed = notice;
+        } else if (notice.type === 'NORMAL') {
+          acc.normal = notice;
+        }
+        return acc;
+      }, {} as { fixed?: Notice; normal?: Notice });
+      
+      setNotices(noticesByType);
       setLoading(false);
     }, 800);
   }, [teamId]);
@@ -189,6 +211,29 @@ const TeamDetailPage = () => {
   };
 
   const canManageGroup = team?.userRole === 'leader' || team?.userRole === 'sub_leader';
+
+  const handleNoticeCreate = (type: 'FIXED' | 'NORMAL') => {
+    setNoticeEditor({ open: true, type, notice: undefined });
+  };
+
+  const handleNoticeEdit = (notice: Notice) => {
+    setNoticeEditor({ open: true, type: notice.type, notice });
+  };
+
+  const handleNoticeSave = (savedNotice: Notice) => {
+    setNotices(prev => ({
+      ...prev,
+      [savedNotice.type.toLowerCase() as 'fixed' | 'normal']: savedNotice
+    }));
+  };
+
+  const handleNoticeDelete = (type: 'FIXED' | 'NORMAL') => {
+    setNotices(prev => {
+      const newNotices = { ...prev };
+      delete newNotices[type.toLowerCase() as 'fixed' | 'normal'];
+      return newNotices;
+    });
+  };
 
   if (loading) {
     return (
@@ -370,52 +415,129 @@ const TeamDetailPage = () => {
                     공지사항
                   </CardTitle>
                   {canManageGroup && (
-                    <Button size="sm" disabled>
-                      {notice ? '공지 수정' : '공지 작성'}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleNoticeCreate('FIXED')}
+                      >
+                        {notices.fixed ? '고정 공지 수정' : '고정 공지 작성'}
+                      </Button>
+                      <Button 
+                        size="sm"
+                        onClick={() => handleNoticeCreate('NORMAL')}
+                      >
+                        {notices.normal ? '일반 공지 수정' : '일반 공지 작성'}
+                      </Button>
+                    </div>
                   )}
                 </div>
               </CardHeader>
               <CardContent>
-                {notice ? (
-                  <div className="space-y-4">
+                <div className="space-y-4">
+                  {/* 고정 공지 */}
+                  {notices.fixed ? (
                     <div className="border rounded-lg p-4 bg-card">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-2">
-                          <h3 className="font-semibold text-lg">{notice.title}</h3>
-                          {notice.pinned && (
-                            <Badge variant="secondary" className="text-xs">고정</Badge>
-                          )}
+                          <h3 className="font-semibold text-lg">{notices.fixed.title}</h3>
+                          <Badge variant="secondary" className="text-xs">고정</Badge>
                         </div>
                         <span className="text-sm text-muted-foreground">
-                          {new Date(notice.createdAt).toLocaleDateString('ko-KR')}
+                          {new Date(notices.fixed.createdAt).toLocaleDateString('ko-KR')}
                         </span>
                       </div>
-                      <p className="text-sm leading-relaxed mb-3 whitespace-pre-wrap">{notice.content}</p>
+                      <p className="text-sm leading-relaxed mb-3 whitespace-pre-wrap">{notices.fixed.content}</p>
                       <div className="flex items-center justify-between">
-                        <div className="text-xs text-muted-foreground">작성자: {notice.author}</div>
+                        <div className="text-xs text-muted-foreground">작성자: {notices.fixed.author}</div>
                         {canManageGroup && (
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" disabled>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleNoticeEdit(notices.fixed!)}
+                            >
                               수정
                             </Button>
-                            <Button size="sm" variant="destructive" disabled>
+                            <Button 
+                              size="sm" 
+                              variant="destructive"
+                              onClick={() => handleNoticeDelete('FIXED')}
+                            >
                               삭제
                             </Button>
                           </div>
                         )}
                       </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <FileText className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
-                    <p className="text-muted-foreground">등록된 공지사항이 없습니다</p>
-                    {canManageGroup && (
-                      <p className="text-sm text-muted-foreground mt-1">공지사항을 작성해보세요</p>
-                    )}
-                  </div>
-                )}
+                  ) : (
+                    <div className="border rounded-lg p-4 bg-muted/30 text-center py-6">
+                      <FileText className="mx-auto h-6 w-6 text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground">고정 공지가 없습니다</p>
+                      {canManageGroup && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="mt-2"
+                          onClick={() => handleNoticeCreate('FIXED')}
+                        >
+                          고정 공지 작성하기
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 일반 공지 */}
+                  {notices.normal ? (
+                    <div className="border rounded-lg p-4 bg-card">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-lg">{notices.normal.title}</h3>
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {new Date(notices.normal.createdAt).toLocaleDateString('ko-KR')}
+                        </span>
+                      </div>
+                      <p className="text-sm leading-relaxed mb-3 whitespace-pre-wrap">{notices.normal.content}</p>
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs text-muted-foreground">작성자: {notices.normal.author}</div>
+                        {canManageGroup && (
+                          <div className="flex gap-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleNoticeEdit(notices.normal!)}
+                            >
+                              수정
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="destructive"
+                              onClick={() => handleNoticeDelete('NORMAL')}
+                            >
+                              삭제
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="border rounded-lg p-4 bg-muted/30 text-center py-6">
+                      <FileText className="mx-auto h-6 w-6 text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground">일반 공지가 없습니다</p>
+                      {canManageGroup && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="mt-2"
+                          onClick={() => handleNoticeCreate('NORMAL')}
+                        >
+                          일반 공지 작성하기
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -542,6 +664,17 @@ const TeamDetailPage = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* 공지사항 편집 다이얼로그 */}
+        <TeamNoticeEditor
+          open={noticeEditor.open}
+          onOpenChange={(open) => setNoticeEditor(prev => ({ ...prev, open }))}
+          notice={noticeEditor.notice}
+          noticeType={noticeEditor.type}
+          teamId={teamId || '1'}
+          onSave={handleNoticeSave}
+          onDelete={() => handleNoticeDelete(noticeEditor.type)}
+        />
 
       </div>
     </div>
