@@ -68,6 +68,8 @@ export interface SaveWeightPayload {
 
 // GET /api/meal/day/insights
 export interface DayInsights {
+  todayWeight: null;
+  profileWeight: null;
   memberId: number;
   nickname: string | null;
   age: number;
