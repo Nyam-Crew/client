@@ -8,6 +8,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import CoachStrip from "@/components/coach/CoachStrip";
+import { getDailyComments } from "@/lib/getDailyComments";
 
 interface UserInfo {
   name: string;
@@ -93,6 +95,23 @@ const MyDayTab = ({
     VERY_ACTIVE: { label: '매우 활발한 활동 (매일 고강도 운동 또는 육체노동)', factor: 1.9   },
   };
 
+
+  const comments = getDailyComments({
+    kcal: todayStats.calories.current,
+    kcalTarget: todayStats.calories.target,
+    proteinG: todayStats.protein.current,
+    carbsG: todayStats.carbs.current,
+    fatG: todayStats.fat.current,
+    waterMl: waterMl ?? undefined,
+    tdee,
+    weightKg: weightKg ?? undefined,
+    // targetWeightKg: 선택적으로 넘기면 축하 메시지 가능
+    goals: {
+      waterGoalMl: waterGoalMl ?? 1000,
+      // proteinGoalG: 있으면 넘기고, 없으면 유틸이 weight*1.2로 추정
+    },
+  });
+
   return (
       <div className="px-4 pt-6 pb-24 bg-gray-50/50" style={{ backgroundColor: '#fffff5' }}>
         <div className="space-y-6">
@@ -110,13 +129,17 @@ const MyDayTab = ({
             <Card className="border-0 shadow-sm bg-white">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-1">
-                  <Flame size={18} className="text-orange-500" />
-                  <span className="text-xs text-gray-500">칼로리</span>
+                  <HelpCircle size={18} className="text-purple-500" />
+                  <span className="text-xs text-gray-500">코칭</span>
                 </div>
-                <div className="text-2xl font-bold text-gray-900 leading-tight">
-                  {todayStats.calories.current}
-                  <span className="text-sm text-gray-500 ml-1">/ {hasCalorieTarget ? todayStats.calories.target : '-'}</span>
-                  <span className="text-sm text-gray-500 ml-1">kcal</span>
+                <div className="mt-1">
+                  <CoachStrip
+                      comments={
+                        Array.isArray(comments)
+                            ? comments.map((c: any) => (typeof c === 'string' ? c : c?.text ?? ''))
+                            : []
+                      }
+                  />
                 </div>
               </CardContent>
             </Card>
