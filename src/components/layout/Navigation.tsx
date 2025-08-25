@@ -22,7 +22,7 @@ const useHasNotification = (isLoggedIn : boolean, isAuthChecking : boolean) => {
       return res.hasNew;
     },
     enabled : isLoggedIn && !isAuthChecking,   // 로그인 한 상태이면서, 권한 체크 끝나야 실행
-    refetchInterval: 30_000,         // 30초마다 갱신
+    //refetchInterval: 30_000,         // 30초마다 갱신
     refetchOnWindowFocus: true,      // 탭 복귀 시 갱신
     refetchOnReconnect: true,        // 네트워크 복구 시 갱신
     staleTime: 10_000,

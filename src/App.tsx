@@ -13,6 +13,7 @@ import Login from "./pages/Login";
 import MemberInfo from "./pages/MemberInfo";
 import MyPage from "./pages/MyPage";
 import GroupPage from "./pages/GroupPage";
+import CreateGroupPage from "@/components/group/CreateGroupPage";
 import Navigation from "./components/layout/Navigation";
 import NotFound from "./pages/NotFound";
 import TeamDetailPage from "@/components/group/TeamDetailPage.tsx";
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/food-search" element={<FoodSearch />} />
           <Route path="/challenge" element={<Challenge />} />
           <Route path="/community" element={<Community />} />
+          <Route path="/teams/create" element={<CreateGroupPage />} />
           <Route path="/teams/:teamId" element={<TeamDetailPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/member-info" element={<MemberInfo />} />
