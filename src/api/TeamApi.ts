@@ -16,14 +16,15 @@ export interface TeamDetailDto {
     teamId: number;
     teamTitle: string;
     teamDescription: string;
-    teamImage: string | null; // null일 수 있으므로 | null 추가
+    teamImage: string | null;
     maxMembers: number;
     currentMemberCount: number;
     createdDate: string;
     status: ParticipationStatus;
     teamRole: TeamRole;
     leaderNickname: string;
-    subLeaderNickname: string | null; // null일 수 있으므로 | null 추가
+    subLeaderNickname: string | null;
+    // currentMemberId는 이제 여기서 받지 않습니다.
 }
 
 /**

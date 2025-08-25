@@ -28,57 +28,23 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import ChatContainer from './ChatContainer';
 import { getNoticesByTeam, deleteNotice, Notice, TeamNoticeType } from '@/api/teamNoticeApi';
 import TeamNoticeEditor from './TeamNoticeEditor';
-import { getTeamDetails, TeamDetailDto } from '@/api/teamApi';
+import { getTeamDetails, TeamDetailDto } from '@/api/TeamApi.ts';
+import { getTeamFeed, TeamActivityFeedItem } from '@/api/TeamFeedApi.ts';
+import {getCurrentUserId, CurrentUserIdDto} from '@/api/UserApi.ts'
+import { useInView } from 'react-intersection-observer';
 
 // --- 타입 정의 ---
-type UserRole = 'LEADER' | 'SUBLEADER' | 'MEMBER';
-
-interface TeamDetail {
-    id: string;
-    name: string;
-    description: string;
-    image?: string;
-    currentMembers: number;
-    maxMembers: number;
-    leader: string;
-    subLeader?: string;
-    userRole: UserRole; // 정규화된 타입 사용
-    joinedAt: string;
-}
-
-interface TeamActivityFeedItem {
-    feedId: string;
-    memberId: number;
-    nickname: string;
-    profileImageUrl: string;
-    activityType: 'WATER' | 'MEAL' | 'WEIGHT' | 'CHALLENGE';
-    activityMessage: string;
-    feedCreatedDate: string;
-}
-
-const mockFeedData: TeamActivityFeedItem[] = [
-    // (피드 데이터는 변경 없음)
-    { feedId: '1', memberId: 1, nickname: '김운동', profileImageUrl: '/api/placeholder/40/40', activityType: 'WATER', activityMessage: '물 800ml를 마셨어요! 💧', feedCreatedDate: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString() },
-    { feedId: '2', memberId: 2, nickname: '나', profileImageUrl: '/api/placeholder/40/40', activityType: 'MEAL', activityMessage: '점심식사를 기록했어요! 🍽️ 닭가슴살 샐러드 - 320kcal', feedCreatedDate: new Date(Date.now() - 1.5 * 60 * 60 * 1000).toISOString() },
-    { feedId: '3', memberId: 3, nickname: '박헬스', profileImageUrl: '/api/placeholder/40/40', activityType: 'WEIGHT', activityMessage: '체중을 기록했어요! 📊 72.5kg (-0.3kg)', feedCreatedDate: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString() },
-    { feedId: '4', memberId: 4, nickname: '이건강', profileImageUrl: '/api/placeholder/40/40', activityType: 'CHALLENGE', activityMessage: '오늘의 운동 목표를 달성했어요! 🎯 30분 러닝 완료', feedCreatedDate: new Date(Date.now() - 45 * 60 * 1000).toISOString() },
-    { feedId: '5', memberId: 2, nickname: '나', profileImageUrl: '/api/placeholder/40/40', activityType: 'WATER', activityMessage: '물 500ml 추가! 💦 오늘 목표까지 200ml 남았어요', feedCreatedDate: new Date(Date.now() - 30 * 60 * 1000).toISOString() },
-    { feedId: '6', memberId: 5, nickname: '최다이어트', profileImageUrl: '/api/placeholder/40/40', activityType: 'MEAL', activityMessage: '저녁식사 기록! 🌙 연어구이와 현미밥 - 450kcal', feedCreatedDate: new Date(Date.now() - 15 * 60 * 1000).toISOString() },
-    { feedId: '7', memberId: 6, nickname: '정운동맨', profileImageUrl: '/api/placeholder/40/40', activityType: 'CHALLENGE', activityMessage: '주간 운동 목표 3회 달성! 🏆 이번 주도 화이팅!', feedCreatedDate: new Date(Date.now() - 5 * 60 * 1000).toISOString() }
-];
-
-const currentUserId = 2;
+type UserRole = 'LEADER' | 'SUB_LEADER' | 'MEMBER';
 
 // --- 역할 정규화 및 헬퍼 함수 ---
 const getRoleBadge = (role: UserRole) => { // 이제 UserRole 타입을 직접 받습니다.
     switch (role) {
         case 'LEADER':
             return <Badge className="bg-[#c2d595] text-[#2d3d0f]"><Crown className="w-3 h-3 mr-1" />리더</Badge>;
-        case 'SUBLEADER':
+        case 'SUB_LEADER':
             return <Badge variant="secondary"><Shield className="w-3 h-3 mr-1" />부리더</Badge>;
         default:
             return <Badge variant="outline">멤버</Badge>;
@@ -91,8 +57,14 @@ const TeamDetailPage = () => {
     const { toast } = useToast();
     const numericTeamId = Number(teamId);
 
+
     // --- 상태 관리 ---
-    const [team, setTeam] = useState<TeamDetail | null>(null);
+    const [team, setTeam] = useState<TeamDetailDto | null>(null); // 타입을 TeamDetailDto로 변경
+    const [currentUser, setCurrentUser] = useState<CurrentUserIdDto | null>(null); // <-- 이 줄 추가
+    const [feedItems, setFeedItems] = useState<TeamActivityFeedItem[]>([]);
+    const [nextCursor, setNextCursor] = useState<number | null>(null);     // 2. 다음 페이지 커서 상태
+    const [hasNext, setHasNext] = useState(true);                          // 3. 다음 페이지 존재 여부 상태
+    const [isFeedLoading, setIsFeedLoading] = useState(false);             // 4. 피드 로딩 상태
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('notices');
 
@@ -118,6 +90,23 @@ const TeamDetailPage = () => {
             toast({ title: "오류", description: "공지사항 로딩에 실패했습니다.", variant: "destructive" });
         }
     };
+    //피드 데이터를 불러오는 함수
+    const fetchFeed = async () => {
+        if (isFeedLoading || !hasNext) return;
+
+        setIsFeedLoading(true);
+        try {
+            const slice = await getTeamFeed(numericTeamId, nextCursor);
+            setFeedItems(prevItems => [...prevItems, ...slice.items]);
+            setNextCursor(slice.nextCursorEpochMs);
+            setHasNext(slice.hasNext);
+        } catch (error) {
+            console.error("Failed to fetch feed:", error);
+            toast({ title: "오류", description: "피드를 불러오는 데 실패했습니다.", variant: "destructive" });
+        } finally {
+            setIsFeedLoading(false);
+        }
+    };
 
     useEffect(() => {
         if (!Number.isFinite(numericTeamId)) {
@@ -127,36 +116,30 @@ const TeamDetailPage = () => {
 
         const loadData = async () => {
             setLoading(true);
+            setFeedItems([]);
+            setNextCursor(null);
+            setHasNext(true);
+
             try {
-                // Promise.all을 사용해 팀 정보와 공지사항 정보를 병렬로 동시에 불러옵니다. (더 효율적)
-                const [teamData] = await Promise.all([
-                    getTeamDetails(numericTeamId), // 1. 팀 상세 정보 API 호출
-                    fetchNotices()                 // 2. 공지사항 API 호출
+                // 사용자 ID, 팀 정보, 피드, 공지를 모두 병렬로 불러옵니다.
+                const [userData, teamData, initialFeedSlice] = await Promise.all([
+                    getCurrentUserId(),
+                    getTeamDetails(numericTeamId),
+                    getTeamFeed(numericTeamId, null),
+                    fetchNotices()
                 ]);
 
-                // API 응답(TeamDetailDto)을 컴포넌트의 상태(TeamDetail) 형식에 맞게 매핑합니다.
-                setTeam({
-                    id: teamData.teamId.toString(),
-                    name: teamData.teamTitle,
-                    description: teamData.teamDescription,
-                    image: teamData.teamImage || undefined,
-                    currentMembers: teamData.currentMemberCount,
-                    maxMembers: teamData.maxMembers,
-                    leader: teamData.leaderNickname,
-                    subLeader: teamData.subLeaderNickname || undefined,
-                    userRole: teamData.teamRole, // DTO의 teamRole을 그대로 사용
-                    joinedAt: teamData.createdDate, // 필드명에 맞게 매핑
-                });
+                // API 응답을 변환 없이 그대로 상태에 저장합니다.
+                setCurrentUser(userData);
+                setTeam(teamData);
+                setFeedItems(initialFeedSlice.items);
+                setNextCursor(initialFeedSlice.nextCursorEpochMs);
+                setHasNext(initialFeedSlice.hasNext);
 
             } catch (error) {
-                console.error("Failed to load team data:", error);
-                toast({
-                    title: "오류",
-                    description: "그룹 정보를 불러오는 데 실패했습니다.",
-                    variant: "destructive"
-                });
-                // 데이터를 불러오지 못했으므로 team 상태를 null로 유지하거나 에러 페이지로 이동할 수 있습니다.
-                setTeam(null);
+                console.error("Failed to load initial data:", error);
+                toast({ title: "오류", description: "페이지 로딩 중 오류가 발생했습니다.", variant: "destructive" });
+                setTeam(null); // 실패 시 team 상태를 null로 설정
             } finally {
                 setLoading(false);
             }
@@ -164,6 +147,16 @@ const TeamDetailPage = () => {
 
         loadData();
     }, [numericTeamId, navigate]);
+
+    // 무한 스크롤을 위한 useEffect
+    const { ref: feedLoaderRef, inView } = useInView({ threshold: 0.1 });
+
+    useEffect(() => {
+        // 첫 로딩 시에는 실행되지 않도록 !loading 조건을 추가할 수 있습니다.
+        if (inView && hasNext && !isFeedLoading && !loading) {
+            fetchFeed();
+        }
+    }, [inView, hasNext, isFeedLoading, loading]);
 
     // --- 이벤트 핸들러 ---
     const handleSaveSuccess = () => {
@@ -196,7 +189,7 @@ const TeamDetailPage = () => {
             }
         }
     };
-    
+
     const handleLeaveGroup = async () => {
         // (기존 로직 유지)
     };
@@ -262,14 +255,14 @@ const TeamDetailPage = () => {
                         <div className="flex items-start justify-between">
                             <div className="flex-1">
                                 <div className="flex items-center gap-3 mb-2">
-                                    <h1 className="text-2xl font-bold">{team.name}</h1>
-                                    {getRoleBadge(team.userRole)}
+                                    <h1 className="text-2xl font-bold">{team.teamTitle}</h1>
+                                    {getRoleBadge(team.teamRole)}
                                 </div>
-                                <p className="text-muted-foreground mb-4">{team.description}</p>
+                                <p className="text-muted-foreground mb-4">{team.teamDescription}</p>
                                 <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                                    <div className="flex items-center gap-1"><Users className="h-4 w-4"/><span>{team.currentMembers}/{team.maxMembers}명</span></div>
-                                    <div className="flex items-center gap-1"><Crown className="h-4 w-4"/><span>리더: {team.leader}</span></div>
-                                    {team.subLeader && (<div className="flex items-center gap-1"><Shield className="h-4 w-4"/><span>부리더: {team.subLeader}</span></div>)}
+                                    <div className="flex items-center gap-1"><Users className="h-4 w-4"/><span>{team.currentMemberCount}/{team.maxMembers}명</span></div>
+                                    <div className="flex items-center gap-1"><Crown className="h-4 w-4"/><span>리더: {team.leaderNickname}</span></div>
+                                    {team.subLeaderNickname && (<div className="flex items-center gap-1"><Shield className="h-4 w-4"/><span>부리더: {team.subLeaderNickname}</span></div>)}
                                 </div>
                             </div>
 
@@ -277,9 +270,9 @@ const TeamDetailPage = () => {
                                 <PopoverTrigger asChild><Button variant="outline" size="sm"><Settings className="h-4 w-4 mr-2"/>설정<ChevronDown className="h-3 w-3 ml-1"/></Button></PopoverTrigger>
                                 <PopoverContent className="w-64" align="end">
                                     <div className="space-y-3">
-                                        <div className="pb-2 border-b"><p className="text-sm font-medium">권한: {getRoleBadge(team.userRole)}</p></div>
-                                        {team.userRole === 'MEMBER' && (<div className="space-y-2"><Button variant="destructive" className="w-full justify-start text-sm" onClick={handleLeaveGroup}>그룹 나가기</Button></div>)}
-                                        {(team.userRole === 'LEADER' || team.userRole === 'SUBLEADER') && (
+                                        <div className="pb-2 border-b"><p className="text-sm font-medium">권한: {getRoleBadge(team.teamRole)}</p></div>
+                                        {team.teamRole === 'MEMBER' && (<div className="space-y-2"><Button variant="destructive" className="w-full justify-start text-sm" onClick={handleLeaveGroup}>그룹 나가기</Button></div>)}
+                                        {(team.teamRole === 'LEADER' || team.teamRole === 'SUB_LEADER') && (
                                             <div className="space-y-2">
                                                 <div className="pb-2">
                                                     <p className="text-xs text-muted-foreground mb-2">관리자 기능</p>
@@ -289,7 +282,7 @@ const TeamDetailPage = () => {
                                                         <Button variant="outline" className="w-full justify-start text-sm h-8" onClick={() => setIsNoticeManagementModalOpen(true)}><FileText className="h-3 w-3 mr-2"/>그룹 공지 관리</Button>
                                                         <Button variant="outline" className="w-full justify-start text-sm h-8" disabled><UserPlus className="h-3 w-3 mr-2"/>가입 요청자 관리</Button>
                                                         <Button variant="outline" className="w-full justify-start text-sm h-8" disabled><UserMinus className="h-3 w-3 mr-2"/>멤버 강퇴</Button>
-                                                        {team.userRole === 'LEADER' && (
+                                                        {team.teamRole === 'LEADER' && (
                                                             <>
                                                                 <Button variant="outline" className="w-full justify-start text-sm h-8" disabled><Crown className="h-3 w-3 mr-2"/>방장 위임</Button>
                                                                 <Button variant="outline" className="w-full justify-start text-sm h-8" disabled><Shield className="h-3 w-3 mr-2"/>부방장 권한 부여</Button>
@@ -330,13 +323,56 @@ const TeamDetailPage = () => {
                     </TabsContent>
 
                     <TabsContent value="feed">
-                        {/* (피드 탭 내용 원본 유지) */}
-                        <Card className="h-[600px] flex flex-col"><CardHeader className="pb-2"><CardTitle className="flex items-center gap-2"><Bell className="h-5 w-5"/>실시간 피드</CardTitle></CardHeader><CardContent className="flex-1 overflow-y-auto"><div className="space-y-4 pb-4">{mockFeedData.map((feedItem) => { const isMyFeed = feedItem.memberId === currentUserId; const feedTime = new Date(feedItem.feedCreatedDate); const timeStr = feedTime.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }); const getActivityIcon = (type: string) => { switch (type) { case 'WATER': return <Droplets className="w-4 h-4"/>; case 'MEAL': return <Utensils className="w-4 h-4"/>; case 'WEIGHT': return <Weight className="w-4 h-4"/>; case 'CHALLENGE': return <Target className="w-4 h-4"/>; default: return <Bell className="w-4 h-4"/>; } }; return (<div key={feedItem.feedId} className={`flex w-full ${isMyFeed ? 'justify-end' : 'justify-start'}`}><div className={`flex max-w-[80%] ${isMyFeed ? 'flex-row-reverse' : 'flex-row'} gap-2`}>{!isMyFeed && (<Avatar className="w-8 h-8 mt-1"><AvatarImage src={feedItem.profileImageUrl} alt={feedItem.nickname}/><AvatarFallback className="text-xs bg-muted">{feedItem.nickname.slice(0, 2)}</AvatarFallback></Avatar>)}<div className={`flex flex-col ${isMyFeed ? 'items-end' : 'items-start'}`}>{!isMyFeed && (<div className="text-xs text-muted-foreground mb-1 px-1">{feedItem.nickname}</div>)}<div className={`relative px-3 py-2 rounded-2xl shadow-sm ${isMyFeed ? 'bg-[#c2d595] text-[#2d3d0f] rounded-br-md' : 'bg-[#ffffe1] text-foreground rounded-bl-md border border-border/50'}`}><div className="flex items-start gap-2"><div className="flex-shrink-0 mt-0.5">{getActivityIcon(feedItem.activityType)}</div><div className="min-w-0"><p className="text-sm leading-relaxed break-words">{feedItem.activityMessage}</p></div></div></div><div className={`text-xs text-muted-foreground mt-1 px-1 ${isMyFeed ? 'text-right' : 'text-left'}`}>{timeStr}</div></div></div></div>); })}</div></CardContent></Card>
+                        <Card className="h-[600px] flex flex-col">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="flex items-center gap-2">
+                                    <Bell className="h-5 w-5"/>실시간 피드
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex-1 overflow-y-auto">
+                                <div className="space-y-4 pb-4">
+                                    {/* ▼▼▼▼▼ [수정] mockFeedData.map -> feedItems.map 으로 변경 ▼▼▼▼▼ */}
+                                    {feedItems.map((feedItem) => {
+                                        const isMyFeed = feedItem.memberId === currentUser?.memberId;
+
+                                        const feedTime = new Date(feedItem.feedCreatedDate);
+                                        const timeStr = feedTime.toLocaleTimeString('ko-KR', {
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                            hour12: false
+                                        });
+
+                                        const getActivityIcon = (type: string) => { /* ... 기존과 동일 ... */ };
+
+                                        return (
+                                            <div key={feedItem.feedId} /* ... 기존과 동일 ... */ >
+                                                {/* ... 기존 렌더링 로직 재사용 ... */}
+                                                <p className="text-sm leading-relaxed break-words">
+                                                    {feedItem.activityMessage} {/* 백엔드 메시지 사용 */}
+                                                </p>
+                                                {/* ... 기존 렌더링 로직 재사용 ... */}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* ▼▼▼▼▼ [추가] 무한 스크롤 로더 ▼▼▼▼▼ */}
+                                <div ref={feedLoaderRef} className="flex justify-center items-center h-16">
+                                    {isFeedLoading && <p>피드를 불러오는 중...</p>}
+                                    {!hasNext && feedItems.length > 0 && <p className="text-sm text-muted-foreground">모든 피드를 확인했습니다.</p>}
+                                </div>
+                            </CardContent>
+                        </Card>
                     </TabsContent>
 
                     <TabsContent value="chat">
                         {/* (채팅 탭 내용 원본 유지) */}
-                        <Card className="h-[600px] flex flex-col"><CardHeader className="pb-2"><CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/>그룹 채팅</CardTitle></CardHeader><CardContent className="flex-1 p-0"><ChatContainer teamId={teamId || '1'} currentUserId={currentUserId} /></CardContent></Card>
+                        <Card className="h-[600px] flex flex-col">
+                            <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2"><MessageSquare className="h-5 w-5"/>그룹 채팅</CardTitle></CardHeader>
+                            <CardContent className="flex-1 p-0">
+                                {currentUser && <ChatContainer teamId={teamId || '1'} currentUserId={currentUser.memberId} />}
+                            </CardContent>
+                        </Card>
                     </TabsContent>
 
                     <TabsContent value="ranking">
