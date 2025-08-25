@@ -246,6 +246,8 @@ const MealRecord = () => {
   const consumedKcal = insights?.totalKcal ?? 0;
   const targetKcal   = insights?.recommendedCalories ?? 0;
 
+  const remainingKcal = targetKcal > 0 ? Math.round(targetKcal - consumedKcal) : 0;
+
   const carbsPct =
       consumedKcal > 0 && insights
           ? (insights.totalCarbohydrate * 4 * 100) / consumedKcal
@@ -258,12 +260,18 @@ const MealRecord = () => {
       consumedKcal > 0 && insights
           ? (insights.totalFat * 9 * 100) / consumedKcal
           : 0;
+  const getBmiCategory = (bmi: number) => {
+    if (bmi < 18.5) return { text: "저체중", color: "text-blue-500" };
+    if (bmi < 23) return { text: "정상", color: "text-green-500" };
+    if (bmi < 25) return { text: "과체중", color: "text-yellow-500" };
+    return { text: "비만", color: "text-red-500" };
+  };
 
   const todayStats = {
     calories: {
       current: consumedKcal,
       target: targetKcal,
-      remaining: 0,
+      remaining: remainingKcal,
     },
     carbs:   { percentage: Math.max(0, Math.min(100, carbsPct)),   current: insights?.totalCarbohydrate ?? 0, target: 0 },
     protein: { percentage: Math.max(0, Math.min(100, proteinPct)), current: insights?.totalProtein ?? 0,      target: 0 },
@@ -401,10 +409,14 @@ const MealRecord = () => {
             <MyDayTab
                 userInfo={{ name: insights?.nickname ?? '사용자' }}
                 bmi={insights?.bmi ?? null}
-                bmiCategory={{ text: '', color: 'text-gray-400' }}
+                bmiCategory={insights?.bmi ? getBmiCategory(insights.bmi) : { text: "", color: "text-gray-400" }}
                 bmr={insights?.bmr ?? null}
                 tdee={insights?.tdee ?? null}
                 todayStats={todayStats}
+
+                waterMl={insights?.totalWater ?? null}   // 서버에서 주는 총 물(ml)
+                waterGoalMl={1000}                       // 목표 물(원하면 1000 고정 또는 사용자 설정값)
+                weightKg={weight ?? null}                // 이미 state에 있는 오늘 체중
             />
           </TabsContent>
 
