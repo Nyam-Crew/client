@@ -146,6 +146,21 @@ const MealRecord = () => {
     fetchInsights();
   }, [selectedDateStr]);
 
+  useEffect(() => {
+    if (activeTab === 'myDay') {
+      const fetchInsights = async () => {
+        try {
+          const data = await getInsightsForDay(selectedDateStr);
+          setInsights(data);
+        } catch (e) {
+          console.error('failed to fetch insights', e);
+          setInsights(null);
+        }
+      };
+      fetchInsights();
+    }
+  }, [selectedDateStr, activeTab]);
+
   const fetchDayData = async () => {
     setLoading(true);
     const dateStr = selectedDate.toISOString().split('T')[0];
