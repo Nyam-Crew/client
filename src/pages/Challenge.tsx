@@ -35,14 +35,6 @@ const Challenge = () => {
   const completedCount = regularChallenges.filter((c) => c.cleared).length + eventChallenges.filter((c) => c.cleared).length;
   const activeCount = regularChallenges.filter((c) => !c.cleared && c.progressCount !== 0 && c.progressCount < c.targetCount).length + eventChallenges.filter((c) => !c.cleared && c.progressCount !== 0 &&  c.progressCount > 0).length;
 
-  const rankings = [
-    {rank: 1, name: '김건강', score: 4890, badge: '👑'},
-    {rank: 2, name: '이영양', score: 4567, badge: '🥈'},
-    {rank: 3, name: '박단백', score: 4234, badge: '🥉'},
-    {rank: 4, name: '최비타민', score: 3892, badge: ''},
-    {rank: 5, name: '정미네랄', score: 3654, badge: ''},
-  ];
-
   return (
       <div className="min-h-screen bg-background pb-20 md:pb-6">
         <div className="max-w-6xl mx-auto p-6 space-y-6">
@@ -88,10 +80,9 @@ const Challenge = () => {
           </Card>
 
           <Tabs defaultValue="personal" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="personal">상시 챌린지</TabsTrigger>
               <TabsTrigger value="event">이벤트 챌린지</TabsTrigger>
-              <TabsTrigger value="ranking">랭킹</TabsTrigger>
             </TabsList>
 
             {/* 개인 챌린지 */}
@@ -160,55 +151,6 @@ const Challenge = () => {
                     </CardContent>
                   </Card>
               ))}
-            </TabsContent>
-
-            {/* 랭킹 */}
-            <TabsContent value="ranking" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp size={20}/>
-                    이번 주 랭킹
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {rankings.map((user) => (
-                        <div key={user.rank}
-                             className="flex items-center justify-between p-3 bg-accent/30 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div
-                                className="flex items-center justify-center w-8 h-8 bg-primary rounded-full text-primary-foreground font-bold">
-                              {user.badge || user.rank}
-                            </div>
-                            <div>
-                              <p className="font-medium">{user.name}</p>
-                              <p className="text-sm text-muted-foreground">{user.rank}위</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold text-lg">{user.score.toLocaleString()}</p>
-                            <p className="text-xs text-muted-foreground">포인트</p>
-                          </div>
-                        </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-to-r from-brand-light to-brand-cream">
-                <CardContent className="p-6">
-                  <div className="text-center">
-                    <Trophy className="mx-auto mb-4 text-warning" size={48}/>
-                    <h3 className="text-xl font-bold mb-2">이번 주 내 순위</h3>
-                    <p className="text-3xl font-bold text-primary mb-2">47위</p>
-                    <p className="text-muted-foreground">2,890점 | 상위 15%</p>
-                    <Button className="mt-4" size="sm">
-                      더 열심히 도전하기
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
             </TabsContent>
           </Tabs>
         </div>
